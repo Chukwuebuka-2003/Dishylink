@@ -3,6 +3,7 @@
 // getComputedStyle would report defaults and every fidelity assertion would be
 // meaningless.
 import "./index.css";
+import "./i18n";
 import { afterEach, beforeEach } from "vitest";
 import { cleanup } from "vitest-browser-react";
 import { noteCloudSessionChanged } from "./lib/cloudHost";

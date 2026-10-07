@@ -1,0 +1,33 @@
+{
+  "common": {
+    "settings": "Einstellungen",
+    "close": "Schließen",
+    "starlink": "Starlink",
+    "router": "Router",
+    "app": "App",
+    "none": "Keines",
+    "choose": "Auswählen…",
+    "notConnected": "Nicht verbunden",
+    "waitingForDevices": "Warte auf die Geräteliste des Routers…"
+  },
+  "settings": {
+    "appToolbar": "Symbolleiste",
+    "appToolbarDesc": "Schwebendes Dock oder linke Leiste für die Bereichslinks",
+    "dock": "Dock",
+    "rail": "Linke Leiste",
+    "language": "Sprache",
+    "languageDesc": "Anzeigesprache der Benutzeroberfläche",
+    "languageInfo": "Ändern Sie die Sprache der Dishylink-Oberfläche. Übersetzungen stammen aus der Community.",
+    "yourDevice": "Ihr Gerät in diesem Netzwerk",
+    "yourDeviceDesc": "Wählen Sie den Computer aus, den Sie gerade verwenden",
+    "toolbarBadge": "Symbolleisten-Badge",
+    "toolbarBadgeDesc": "Was der Zähler auf dem Erweiterungssymbol enthält",
+    "badgeAll": "Alle Warnungen",
+    "badgeFaults": "Nur Gerätefehler",
+    "badgeOff": "Kein Badge",
+    "throughputIn": "Durchsatz in {{surface}}",
+    "throughputInDesc": "Live-Durchsatz ↓/↑ in {{surface}} anzeigen",
+    "menuBar": "Menüleiste",
+    "taskbar": "Taskleiste"
+  }
+}

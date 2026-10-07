@@ -1,0 +1,33 @@
+{
+  "common": {
+    "settings": "Paramètres",
+    "close": "Fermer",
+    "starlink": "Starlink",
+    "router": "Routeur",
+    "app": "Application",
+    "none": "Aucun",
+    "choose": "Choisir…",
+    "notConnected": "Non connecté",
+    "waitingForDevices": "En attente de la liste des appareils du routeur…"
+  },
+  "settings": {
+    "appToolbar": "Barre d'outils",
+    "appToolbarDesc": "Dock flottant ou volet latéral gauche",
+    "dock": "Dock",
+    "rail": "Volet latéral",
+    "language": "Langue",
+    "languageDesc": "Langue d'affichage de l'interface",
+    "languageInfo": "Modifiez la langue de l'interface Dishylink. Les traductions sont fournies par la communauté.",
+    "yourDevice": "Votre appareil sur ce réseau",
+    "yourDeviceDesc": "Choisissez l'ordinateur que vous utilisez actuellement",
+    "toolbarBadge": "Badge de barre d'outils",
+    "toolbarBadgeDesc": "Ce que compte le badge sur l'icône de l'extension",
+    "badgeAll": "Toutes les alertes",
+    "badgeFaults": "Pannes d'appareils uniquement",
+    "badgeOff": "Pas de badge",
+    "throughputIn": "Débit dans {{surface}}",
+    "throughputInDesc": "Afficher le débit ↓/↑ en direct dans {{surface}}",
+    "menuBar": "la barre des menus",
+    "taskbar": "la barre des tâches"
+  }
+}

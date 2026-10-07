@@ -1,0 +1,33 @@
+{
+  "common": {
+    "settings": "Settings",
+    "close": "Close",
+    "starlink": "Starlink",
+    "router": "Router",
+    "app": "App",
+    "none": "None",
+    "choose": "Choose…",
+    "notConnected": "Not connected",
+    "waitingForDevices": "Waiting for the router to list your devices…"
+  },
+  "settings": {
+    "appToolbar": "App toolbar",
+    "appToolbarDesc": "Floating dock or a left rail for the section links",
+    "dock": "Dock",
+    "rail": "Left rail",
+    "language": "Language",
+    "languageDesc": "Interface display language",
+    "languageInfo": "Change the language used across the Dishylink interface. Translations are community-contributed.",
+    "yourDevice": "Your device on this network",
+    "yourDeviceDesc": "Pick the computer you are using right now",
+    "toolbarBadge": "Toolbar badge",
+    "toolbarBadgeDesc": "What the count on the extension icon includes",
+    "badgeAll": "All alerts",
+    "badgeFaults": "Device faults only",
+    "badgeOff": "No badge",
+    "throughputIn": "Throughput in {{surface}}",
+    "throughputInDesc": "Show the live ↓/↑ rate in the {{surface}}",
+    "menuBar": "menu bar",
+    "taskbar": "taskbar"
+  }
+}

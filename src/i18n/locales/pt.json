@@ -1,0 +1,33 @@
+{
+  "common": {
+    "settings": "Configurações",
+    "close": "Fechar",
+    "starlink": "Starlink",
+    "router": "Roteador",
+    "app": "Aplicativo",
+    "none": "Nenhum",
+    "choose": "Escolher…",
+    "notConnected": "Não conectado",
+    "waitingForDevices": "Aguardando o roteador listar os dispositivos…"
+  },
+  "settings": {
+    "appToolbar": "Barra de ferramentas",
+    "appToolbarDesc": "Dock flutuante ou barra lateral esquerda",
+    "dock": "Dock",
+    "rail": "Barra lateral",
+    "language": "Idioma",
+    "languageDesc": "Idioma de exibição da interface",
+    "languageInfo": "Altere o idioma da interface do Dishylink. As traduções são colaborações da comunidade.",
+    "yourDevice": "Seu dispositivo nesta rede",
+    "yourDeviceDesc": "Escolha o computador que você está usando agora",
+    "toolbarBadge": "Notificação da barra",
+    "toolbarBadgeDesc": "O que o contador no ícone da extensão inclui",
+    "badgeAll": "Todos os alertas",
+    "badgeFaults": "Apenas falhas de dispositivo",
+    "badgeOff": "Sem notificação",
+    "throughputIn": "Taxa de transferência em {{surface}}",
+    "throughputInDesc": "Mostrar taxa de ↓/↑ ao vivo em {{surface}}",
+    "menuBar": "barra de menus",
+    "taskbar": "barra de tarefas"
+  }
+}
