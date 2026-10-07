@@ -76,6 +76,63 @@ function useMenuBarThroughput(): [boolean, (on: boolean) => void] | null {
   return [on, toggle];
 }
 
+/** The same seed-then-follow pattern as `useMenuBarThroughput`, for the macOS
+ *  hide-tray-icon preference. Null off macOS, where the preload omits it. */
+function useHideTrayIcon(): [boolean, (hidden: boolean) => void] | null {
+  const host = window.dishlink;
+  const bridged = typeof host?.setHideTrayIcon === "function" ? host : null;
+  const [hidden, setHidden] = useState(false);
+
+  useEffect(() => {
+    if (!bridged) return;
+    let active = true;
+    void bridged.hideTrayIcon?.().then((value) => {
+      if (active) setHidden(value);
+    });
+    const unsubscribe = bridged.onHideTrayIcon?.((value) => setHidden(value));
+    return () => {
+      active = false;
+      unsubscribe?.();
+    };
+  }, [bridged]);
+
+  if (!bridged) return null;
+  const toggle = (next: boolean) => {
+    setHidden(next);
+    void bridged.setHideTrayIcon?.(next).then(setHidden);
+  };
+  return [hidden, toggle];
+}
+
+type TrayIconStyle = "template" | "outline" | "original";
+
+/** Seed-then-follow for the macOS menu-bar icon style. Null off macOS. */
+function useTrayIconStyle(): [TrayIconStyle, (style: TrayIconStyle) => void] | null {
+  const host = window.dishlink;
+  const bridged = typeof host?.setTrayIconStyle === "function" ? host : null;
+  const [style, setStyle] = useState<TrayIconStyle>("original");
+
+  useEffect(() => {
+    if (!bridged) return;
+    let active = true;
+    void bridged.trayIconStyle?.().then((value) => {
+      if (active) setStyle(value);
+    });
+    const unsubscribe = bridged.onTrayIconStyle?.((value) => setStyle(value));
+    return () => {
+      active = false;
+      unsubscribe?.();
+    };
+  }, [bridged]);
+
+  if (!bridged) return null;
+  const choose = (next: TrayIconStyle) => {
+    setStyle(next);
+    void bridged.setTrayIconStyle?.(next).then(setStyle);
+  };
+  return [style, choose];
+}
+
 const NO_SELF_DEVICE = "none";
 
 /** Language selector row: switches UI locale dynamically. */
@@ -262,6 +319,8 @@ export function AppSettingsTab({ clients }: { clients: WifiClientJson[] }) {
   const { t } = useTranslation();
   const toolbarStyle = useSyncExternalStore(subscribeToToolbarStyle, readToolbarStyle);
   const menuBar = useMenuBarThroughput();
+  const hideTrayIcon = useHideTrayIcon();
+  const trayStyle = useTrayIconStyle();
   // The readout lives in the menu bar on macOS and the taskbar on Windows; name
   // whichever this host is. Only reached when the bridge is present, i.e. desktop.
   const surface =
@@ -300,6 +359,39 @@ export function AppSettingsTab({ clients }: { clients: WifiClientJson[] }) {
           caption={t("settings.throughputInDesc", { surface })}
         >
           <Switch checked={menuBar[0]} onCheckedChange={menuBar[1]} />
+        </SettingRow>
+      )}
+
+      {menuBar?.[0] && hideTrayIcon && (
+        <SettingRow
+          title={t("settings.hideMenuBarIcon")}
+          caption={t("settings.hideMenuBarIconDesc")}
+        >
+          <Switch checked={hideTrayIcon[0]} onCheckedChange={hideTrayIcon[1]} />
+        </SettingRow>
+      )}
+
+      {trayStyle && !hideTrayIcon?.[0] && (
+        <SettingRow title={t("settings.menuBarIcon")} caption={t("settings.menuBarIconDesc")}>
+          <Select
+            value={trayStyle[0]}
+            onValueChange={(value) => trayStyle[1](value as TrayIconStyle)}
+          >
+            <SelectTrigger className={triggerClass} style={{ width: 118 }}>
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent className={selectContentClass}>
+              <SelectItem value='template' className={selectItemClass}>
+                {t("settings.monochrome")}
+              </SelectItem>
+              <SelectItem value='outline' className={selectItemClass}>
+                {t("settings.outline")}
+              </SelectItem>
+              <SelectItem value='original' className={selectItemClass}>
+                {t("settings.appIcon")}
+              </SelectItem>
+            </SelectContent>
+          </Select>
         </SettingRow>
       )}
     </>
