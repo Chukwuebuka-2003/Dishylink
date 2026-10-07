@@ -24,6 +24,15 @@ void i18n.use(initReactI18next).init({
   },
 });
 
+function setDocumentLanguage(language: string): void {
+  if (typeof document === "undefined") return;
+  document.documentElement.lang = language;
+  document.documentElement.dir = i18n.dir(language);
+}
+
+setDocumentLanguage(readLocale());
+i18n.on("languageChanged", setDocumentLanguage);
+
 // Re-align i18next whenever the user changes the locale setting
 subscribeToLocale(() => {
   const next = readLocale();

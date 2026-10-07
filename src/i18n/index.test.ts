@@ -12,7 +12,7 @@ globalThis.localStorage = {
   },
 } as Storage;
 
-const { default: i18n } = await import("./index");
+const { default: i18n, resources } = await import("./index");
 const { setLocale } = await import("../lib/locale");
 
 describe("i18n setup", () => {
@@ -52,5 +52,19 @@ describe("i18n setup", () => {
     expect(i18n.language).toBe("pt");
     expect(i18n.t("common.settings")).toBe("Configurações");
     expect(i18n.t("settings.language")).toBe("Idioma");
+  });
+
+  it("keeps every locale in sync with the English translation keys", () => {
+    const flatten = (value: object, prefix = ""): string[] =>
+      Object.entries(value).flatMap(([key, child]) =>
+        typeof child === "object" && child !== null
+          ? flatten(child, `${prefix}${key}.`)
+          : [`${prefix}${key}`],
+      );
+    const englishKeys = flatten(resources.en.translation).sort();
+
+    for (const resource of Object.values(resources)) {
+      expect(flatten(resource.translation).sort()).toEqual(englishKeys);
+    }
   });
 });

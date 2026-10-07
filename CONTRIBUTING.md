@@ -68,6 +68,27 @@ Tests run in Node except for a few extension files that need real IndexedDB;
 those run in headless Chromium via Playwright. `npx playwright install chromium`
 once if you haven't got it.
 
+## Adding or updating a translation
+
+Translation catalogs live in `src/i18n/locales`. English is the source catalog,
+and every user-facing sentence should be represented by a descriptive key there
+instead of being duplicated in a component.
+
+To add a language:
+
+1. Copy `src/i18n/locales/en.json`, translate the values, and preserve every key
+   and interpolation token such as `{{count}}`.
+2. Add the locale code and its native-language label to `SUPPORTED_LOCALES` in
+   `src/lib/locale.ts`.
+3. Import the catalog and register it in `resources` in `src/i18n/index.ts`.
+4. Run `npm test -- --run src/i18n/index.test.ts`. The catalog-parity test names
+   missing or extra keys before a translation can drift out of sync.
+
+Dishylink falls back to English at runtime, but completed catalogs are kept in
+key-for-key parity so users never get a mixed-language screen. Use i18next
+plural keys (`_one`, `_other`) for counts, interpolation for dynamic text, and
+the selected i18next locale for number or date formatting.
+
 ## Pull requests
 
 - Branch off `master`, one topic per PR.

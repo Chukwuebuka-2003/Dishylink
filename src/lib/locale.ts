@@ -24,17 +24,24 @@ export const LOCALE_STORAGE_KEY = "dishylink-locale";
 
 const listeners = new Set<() => void>();
 
+export function isSupportedLocale(locale: string): locale is SupportedLocale {
+  return SUPPORTED_LOCALES.some((option) => option.code === locale);
+}
+
+function publishLocaleChange(): void {
+  for (const listener of listeners) listener();
+}
+
 function detectBrowserLocale(): SupportedLocale {
   if (typeof navigator === "undefined" || !navigator.language) return DEFAULT_LOCALE;
   const lang = navigator.language.slice(0, 2).toLowerCase();
-  const matched = SUPPORTED_LOCALES.find((l) => l.code === lang);
-  return matched ? matched.code : DEFAULT_LOCALE;
+  return isSupportedLocale(lang) ? lang : DEFAULT_LOCALE;
 }
 
 export function readLocale(): SupportedLocale {
   if (typeof localStorage === "undefined") return DEFAULT_LOCALE;
   const stored = localStorage.getItem(LOCALE_STORAGE_KEY) as SupportedLocale | null;
-  if (stored && SUPPORTED_LOCALES.some((l) => l.code === stored)) {
+  if (stored && isSupportedLocale(stored)) {
     return stored;
   }
   return detectBrowserLocale();
@@ -44,9 +51,7 @@ export function setLocale(locale: SupportedLocale): void {
   if (typeof localStorage !== "undefined") {
     localStorage.setItem(LOCALE_STORAGE_KEY, locale);
   }
-  for (const listener of listeners) {
-    listener();
-  }
+  publishLocaleChange();
 }
 
 export function subscribeToLocale(listener: () => void): () => void {
@@ -54,4 +59,12 @@ export function subscribeToLocale(listener: () => void): () => void {
   return () => {
     listeners.delete(listener);
   };
+}
+
+// Keep multiple Dishylink windows in step. The window that performs the write
+// is notified by setLocale; every other window receives the storage event.
+if (typeof window !== "undefined") {
+  window.addEventListener("storage", (event) => {
+    if (event.key === LOCALE_STORAGE_KEY) publishLocaleChange();
+  });
 }

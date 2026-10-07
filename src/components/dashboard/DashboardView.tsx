@@ -1,4 +1,5 @@
 import { useMemo, useState } from "react";
+import { useTranslation } from "react-i18next";
 import type { DishStatusJson, DishObstructionMapJson } from "@core/dishClient";
 import { readRouterLatencyMs, type OutageEvent, type TelemetrySample } from "@core/telemetry";
 import type { DishConnectionState } from "../../hooks/useDishTelemetry";
@@ -18,7 +19,7 @@ import {
   buildStatDetails,
 } from "../../lib/statDetails";
 import { DetailsModal } from "../ui/details-modal";
-import { StatDetailPanel } from "./StatDetailPanel";
+import { StatDetailPanel, type StatDetail } from "./StatDetailPanel";
 import { formatThroughputLabel, formatThroughputTick } from "../../lib/format";
 
 const CHART_TIME_RANGES: { label: string; minutes: number }[] = [
@@ -33,11 +34,6 @@ const CHART_TIME_RANGE_FILTER_OPTIONS = CHART_TIME_RANGES.map((range) => ({
 }));
 
 const legendItem = "inline-flex items-center gap-1.5 text-[12px] font-medium text-ink-secondary";
-
-const THROUGHPUT_LEGEND = [
-  { label: "Download", colorVar: "--series-down" },
-  { label: "Upload", colorVar: "--series-up" },
-];
 
 interface DashboardViewProps {
   status: DishStatusJson | null;
@@ -86,18 +82,74 @@ export function DashboardView({
   onOpenSatelliteView,
   onExpandTerminal,
 }: DashboardViewProps) {
+  const { t, i18n } = useTranslation();
   const [openDetailId, setOpenDetailId] = useState<string | null>(null);
-  const statDetails = useMemo(
-    () =>
-      buildStatDetails({
-        status,
-        currentPowerW: livePowerW,
-        powerWindowEndMs,
-        recentPingSuccessPercent,
-        outageEvents,
-      }),
-    [status, livePowerW, powerWindowEndMs, recentPingSuccessPercent, outageEvents],
-  );
+  const statDetails = useMemo<Record<string, StatDetail>>(() => {
+    const details = buildStatDetails({
+      status,
+      currentPowerW: livePowerW,
+      powerWindowEndMs,
+      recentPingSuccessPercent,
+      outageEvents,
+    });
+    return {
+      ...details,
+      download: {
+        ...details.download,
+        label: t("metrics.download"),
+        explainer: t("metrics.downloadExplainer"),
+        series: details.download.series.map((series) => ({
+          ...series,
+          label: t("metrics.download"),
+        })),
+      },
+      upload: {
+        ...details.upload,
+        label: t("metrics.upload"),
+        explainer: t("metrics.uploadExplainer"),
+        series: details.upload.series.map((series) => ({
+          ...series,
+          label: t("metrics.upload"),
+        })),
+      },
+      latency: {
+        ...details.latency,
+        label: t("metrics.latency"),
+        explainer: t("metrics.latencyExplainer"),
+        series: details.latency.series.map((series) => ({
+          ...series,
+          label: series.id === "router-latency" ? t("common.router") : t("common.starlink"),
+        })),
+      },
+      pingSuccess: {
+        ...details.pingSuccess,
+        label: t("metrics.pingSuccess"),
+        modalTitle: t("metrics.starlinkPingSuccess"),
+        explainer: t("metrics.pingExplainer"),
+        secondaryChart: details.pingSuccess.secondaryChart
+          ? {
+              ...details.pingSuccess.secondaryChart,
+              title: t("metrics.routerPingSuccess"),
+              note: t("metrics.routerPingNote"),
+              emptyNote: t("metrics.routerPingEmpty"),
+              series: details.pingSuccess.secondaryChart.series.map((series) => ({
+                ...series,
+                label: t("common.router"),
+              })),
+            }
+          : undefined,
+      },
+      power: {
+        ...details.power,
+        label: t("metrics.powerDraw"),
+        explainer: t("metrics.powerExplainer"),
+        series: details.power.series.map((series) => ({
+          ...series,
+          label: t("metrics.powerDraw"),
+        })),
+      },
+    };
+  }, [status, livePowerW, powerWindowEndMs, recentPingSuccessPercent, outageEvents, t]);
 
   const openDetail = openDetailId ? statDetails[openDetailId] : null;
   const detailModal = openDetail && (
@@ -125,54 +177,58 @@ export function DashboardView({
 
   const statTiles: StatTileConfig[] = [
     {
-      label: "Download",
+      label: t("metrics.download"),
       value: liveDownlink.value,
       unit: liveDownlink.unit,
-      caption: "current traffic",
+      caption: t("metrics.currentTraffic"),
       sparkValues: sparklines.downlink,
       sparkColorVar: "--series-down",
       onOpenDetail: () => setOpenDetailId("download"),
     },
     {
-      label: "Upload",
+      label: t("metrics.upload"),
       value: liveUplink.value,
       unit: liveUplink.unit,
-      caption: "current traffic",
+      caption: t("metrics.currentTraffic"),
       sparkValues: sparklines.uplink,
       sparkColorVar: "--series-up",
       onOpenDetail: () => setOpenDetailId("upload"),
     },
     {
-      label: "Latency",
+      label: t("metrics.latency"),
       value: (liveLatencyMs ?? 0).toFixed(0),
       unit: "ms",
-      caption: "pop ping, live",
+      caption: t("metrics.popPingLive"),
       sparkValues: sparklines.latency,
       onOpenDetail: () => setOpenDetailId("latency"),
     },
     {
-      label: "Power draw",
+      label: t("metrics.powerDraw"),
       value: livePowerW.toFixed(0),
       unit: "W",
-      caption: "current draw",
+      caption: t("metrics.currentDraw"),
       sparkValues: sparklines.power,
       onOpenDetail: () => setOpenDetailId("power"),
     },
     {
-      label: "Ping success",
+      label: t("metrics.pingSuccess"),
       value: recentPingSuccessPercent.toFixed(1),
       unit: "%",
-      caption: "last minute",
+      caption: t("metrics.lastMinute"),
       sparkValues: sparklines.pingSuccess,
       onOpenDetail: () => setOpenDetailId("pingSuccess"),
     },
     {
-      label: "Sky obstructed",
+      label: t("metrics.skyObstructed"),
       value: ((status?.obstructionStats?.fractionObstructed ?? 0) * 100).toFixed(2),
       unit: "%",
       caption: status?.obstructionStats?.patchesValid
-        ? `${status.obstructionStats.patchesValid.toLocaleString()} patches mapped`
-        : "all-time view",
+        ? t("metrics.patchesMapped", {
+            count: new Intl.NumberFormat(i18n.resolvedLanguage).format(
+              status.obstructionStats.patchesValid,
+            ),
+          })
+        : t("metrics.allTimeView"),
     },
   ];
 
@@ -188,27 +244,33 @@ export function DashboardView({
       <section className='grid grid-cols-12 gap-3.5 max-[1080px]:flex max-[1080px]:flex-col'>
         {/* Throughput chart */}
         <SectionCard
-          title='Throughput'
+          title={t("metrics.throughput")}
           className='col-span-8'
           headerAction={
             <SegmentedControl
               options={CHART_TIME_RANGE_FILTER_OPTIONS}
               value={String(windowMinutes)}
               onChange={(minutes) => onWindowMinutesChange(Number(minutes))}
-              label='Chart time window'
+              label={t("metrics.chartTimeWindow")}
             />
           }
         >
           <TelemetryChart
             samples={chartSamples}
-            series={THROUGHPUT_SERIES}
+            series={THROUGHPUT_SERIES.map((series) => ({
+              ...series,
+              label: series.id === "down" ? t("metrics.download") : t("metrics.upload"),
+            }))}
             windowMinutes={windowMinutes}
             formatValue={formatThroughputLabel}
             formatTick={formatThroughputTick}
             outageEvents={outageEvents}
           />
           <div className='mt-2 flex items-center justify-center gap-3.5'>
-            {THROUGHPUT_LEGEND.map((entry) => (
+            {[
+              { label: t("metrics.download"), colorVar: "--series-down" },
+              { label: t("metrics.upload"), colorVar: "--series-up" },
+            ].map((entry) => (
               <span key={entry.label} className={legendItem}>
                 <span
                   className='size-[9px] flex-none rounded-full'
@@ -229,7 +291,11 @@ export function DashboardView({
         />
 
         {/* Latency chart */}
-        <SectionCard title='Latency' className='col-span-8' meta='pop ping · red bands = outages'>
+        <SectionCard
+          title={t("metrics.latency")}
+          className='col-span-8'
+          meta={t("metrics.latencyMeta")}
+        >
           <TelemetryChart
             samples={chartSamples}
             series={LATENCY_SERIES}
@@ -242,9 +308,11 @@ export function DashboardView({
 
         {/* Power draw chart */}
         <SectionCard
-          title='Power draw'
+          title={t("metrics.powerDraw")}
           className='col-span-8'
-          meta={`≈ ${((averagePowerW * 24) / 1000).toFixed(2)} kWh/day at recent draw`}
+          meta={t("metrics.powerMeta", {
+            value: ((averagePowerW * 24) / 1000).toFixed(2),
+          })}
         >
           <TelemetryChart
             samples={powerChartSamples}
@@ -264,12 +332,12 @@ export function DashboardView({
           <DishTerminalCard status={status} stale={stale} onExpand={onExpandTerminal} />
         ) : (
           <SectionCard
-            title='Starlink Dish Terminal'
+            title={t("navigation.dishTerminal")}
             className='col-span-12'
             meta={
               connectionState === "unreachable"
-                ? "dish isn’t answering — no status received yet"
-                : "waiting for the dish’s first reply…"
+                ? t("metrics.dishNotAnswering")
+                : t("metrics.waitingForDish")
             }
           />
         )}

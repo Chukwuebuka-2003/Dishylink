@@ -1,6 +1,7 @@
 // Dish configuration and maintenance — the Starlink half of the settings panel.
 
 import { useState } from "react";
+import { useTranslation } from "react-i18next";
 import { CheckIcon, InfoIcon } from "lucide-react";
 import { Select as SelectPrimitive } from "radix-ui";
 import { Callout } from "@/components/ui/callout";
@@ -32,20 +33,18 @@ import { formatClock12, localMinutesToUtcMinutes, utcMinutesToLocalMinutes } fro
 import { TimePicker } from "./TimePicker";
 import { UPDATE_WINDOWS, updateWindowFor } from "./updateWindow";
 
-const SNOW_MELT_LABEL: Record<SnowMeltMode, string> = {
-  AUTO: "Automatic",
-  ALWAYS_ON: "Always on",
-  ALWAYS_OFF: "Off",
-};
-
-const SNOW_MELT_DESCRIPTION: Record<SnowMeltMode, string> = {
-  AUTO: "Automatically detect snow and heat up when needed.",
-  ALWAYS_ON:
-    "Keep warm to better resist snow build-up. This option may increase power consumption.",
-  ALWAYS_OFF: "Never use extra power to melt snow.",
-};
-
 function SnowMeltOption({ mode }: { mode: SnowMeltMode }) {
+  const { t } = useTranslation();
+  const labels: Record<SnowMeltMode, string> = {
+    AUTO: t("common.automatic"),
+    ALWAYS_ON: t("common.alwaysOn"),
+    ALWAYS_OFF: t("common.off"),
+  };
+  const descriptions: Record<SnowMeltMode, string> = {
+    AUTO: t("settings.snowAutoDesc"),
+    ALWAYS_ON: t("settings.snowAlwaysDesc"),
+    ALWAYS_OFF: t("settings.snowOffDesc"),
+  };
   return (
     <SelectPrimitive.Item
       value={mode}
@@ -69,11 +68,11 @@ function SnowMeltOption({ mode }: { mode: SnowMeltMode }) {
             </span>
           </TooltipTrigger>
           <TooltipContent side='left' className='max-w-56'>
-            {SNOW_MELT_DESCRIPTION[mode]}
+            {descriptions[mode]}
           </TooltipContent>
         </Tooltip>
       </span>
-      <SelectPrimitive.ItemText>{SNOW_MELT_LABEL[mode]}</SelectPrimitive.ItemText>
+      <SelectPrimitive.ItemText>{labels[mode]}</SelectPrimitive.ItemText>
     </SelectPrimitive.Item>
   );
 }
@@ -92,6 +91,7 @@ export function StarlinkSettingsTab({
   loadDish: () => Promise<DishClient>;
   onCopyDiagnostics: () => Promise<"copied" | "failed">;
 }) {
+  const { t } = useTranslation();
   const [copyState, setCopyState] = useState<"idle" | "copied" | "failed">("idle");
   const config = settings.config;
 
@@ -108,7 +108,7 @@ export function StarlinkSettingsTab({
 
   return (
     <>
-      {settings.loading && <Loading message='Reading dish configuration…' />}
+      {settings.loading && <Loading message={t("settings.readingDish")} />}
       {/* Same Callout the Router tab uses for its failures — the two tabs are
           siblings and their errors must not read as two different apps. */}
       {settings.error && (
@@ -122,10 +122,7 @@ export function StarlinkSettingsTab({
       )}
       {config && (
         <>
-          <SettingRow
-            title='Snow melt'
-            caption="Heats the panel to shed snow. Auto uses the dish's own sensors."
-          >
+          <SettingRow title={t("settings.snowMelt")} caption={t("settings.snowMeltDesc")}>
             <Select
               value={config.snowMeltMode ?? "AUTO"}
               disabled={settings.saving}
@@ -135,7 +132,7 @@ export function StarlinkSettingsTab({
                 <SelectValue />
               </SelectTrigger>
               <SelectContent className={selectContentClass}>
-                {(Object.keys(SNOW_MELT_LABEL) as SnowMeltMode[]).map((mode) => (
+                {(["AUTO", "ALWAYS_ON", "ALWAYS_OFF"] as SnowMeltMode[]).map((mode) => (
                   <SnowMeltOption key={mode} mode={mode} />
                 ))}
               </SelectContent>
@@ -143,11 +140,14 @@ export function StarlinkSettingsTab({
           </SettingRow>
 
           <SettingRow
-            title='Sleep schedule'
+            title={t("settings.sleepSchedule")}
             caption={
               sleepEnabled
-                ? `Dish powers down daily at ${formatClock12(sleepStartLocal)} and wakes at ${formatClock12(wakeLocal)}`
-                : "Power the dish down for part of every day"
+                ? t("settings.sleepScheduleOn", {
+                    sleep: formatClock12(sleepStartLocal),
+                    wake: formatClock12(wakeLocal),
+                  })
+                : t("settings.sleepScheduleOff")
             }
           >
             <Switch
@@ -198,7 +198,7 @@ export function StarlinkSettingsTab({
               six-hour band, which is why the official app offers exactly these
               and words them "around 3 AM · Between 12 AM and 6 AM". */}
           <SettingRow
-            title='Software updates'
+            title={t("settings.softwareUpdates")}
             caption={`Update reboots happen ${updateWindow.range.toLowerCase()}`}
           >
             <Select
@@ -231,10 +231,7 @@ export function StarlinkSettingsTab({
             />
           </SettingRow>
 
-          <SettingRow
-            title='Debug data'
-            caption='Diagnostics + status + config as JSON, for support or bug reports'
-          >
+          <SettingRow title={t("settings.debugData")} caption={t("settings.debugDataDesc")}>
             <button
               className={actionButton("subtle")}
               onClick={() => {
@@ -252,10 +249,10 @@ export function StarlinkSettingsTab({
             </button>
           </SettingRow>
 
-          <SectionLabel>Maintenance</SectionLabel>
+          <SectionLabel>{t("settings.maintenance")}</SectionLabel>
           <DangerAction
-            title='Reset obstruction map'
-            caption='Wipes the learned sky survey — do this after physically relocating the dish. Takes hours to relearn.'
+            title={t("settings.resetObstruction")}
+            caption={t("settings.resetObstructionDesc")}
             buttonLabel='Reset'
             confirmLabel='Yes, reset map'
             onRun={async () => {
@@ -264,8 +261,8 @@ export function StarlinkSettingsTab({
             }}
           />
           <DangerAction
-            title='Reboot Starlink'
-            caption='Internet drops for ~2–3 minutes while the dish restarts'
+            title={t("settings.rebootStarlink")}
+            caption={t("settings.rebootStarlinkDesc")}
             buttonLabel='Reboot'
             slideLabel='Slide to reboot dish'
             confirmLabel='Reboot dish'
@@ -275,8 +272,8 @@ export function StarlinkSettingsTab({
             }}
           />
           <DangerAction
-            title='Factory reset Starlink'
-            caption='Wipes every dish setting back to how it shipped. Not reversible.'
+            title={t("settings.factoryResetStarlink")}
+            caption={t("settings.factoryResetStarlinkDesc")}
             buttonLabel='Factory reset'
             slideLabel='Slide to factory reset the dish'
             confirmLabel='Factory reset dish'

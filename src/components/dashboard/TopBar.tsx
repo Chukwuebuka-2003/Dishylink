@@ -3,6 +3,7 @@
 // status readouts (country, uptime) drop so the strip stays on one line.
 
 import { LaptopIcon } from "../../assets/icons/LaptopIcon";
+import { useTranslation } from "react-i18next";
 import { MoonIcon } from "../../assets/icons/MoonIcon";
 import { SunIcon } from "../../assets/icons/SunIcon";
 import { nextTheme, type ThemeName } from "../../lib/theme";
@@ -24,12 +25,6 @@ interface TopBarProps {
   notificationsBlockedReason: string | null;
   onToggleNotifications: () => void;
 }
-
-const CONNECTION_LABEL: Record<DishConnectionState, string> = {
-  connecting: "connecting",
-  online: "online",
-  unreachable: "dish unreachable",
-};
 
 // The status dot: a 7px disc that pulses while the link is live or being found,
 // and sits still once the dish is unreachable.
@@ -65,7 +60,13 @@ export function TopBar({
   notificationsBlockedReason,
   onToggleNotifications,
 }: TopBarProps) {
+  const { t } = useTranslation();
   const ThemeIcon = THEME_ICON[theme];
+  const connectionLabel: Record<DishConnectionState, string> = {
+    connecting: t("status.connecting"),
+    online: t("status.online"),
+    unreachable: t("status.dishUnreachable"),
+  };
 
   return (
     <header className='sticky top-0 z-20 flex items-center justify-between gap-4 bg-gradient-to-b from-[color-mix(in_srgb,var(--page)_72%,transparent)] via-[color-mix(in_srgb,var(--page)_42%,transparent)] to-transparent px-6 pt-3.5 pb-4'>
@@ -77,7 +78,7 @@ export function TopBar({
         <div className='flex items-center gap-2.5'>
           <span className={statusItem}>
             <span className={`${statusDot} ${CONNECTION_DOT[connectionState]} `} />
-            {CONNECTION_LABEL[connectionState]}
+            {connectionLabel[connectionState]}
           </span>
           {status?.deviceInfo?.countryCode && (
             <span className={`${statusItem} ${statusDivider}`}>
@@ -86,7 +87,9 @@ export function TopBar({
           )}
           {status?.deviceState?.uptimeS && (
             <span className={`${statusItem} ${statusDivider}`}>
-              up {formatUptime(Number(status.deviceState.uptimeS))}
+              {t("status.uptime", {
+                duration: formatUptime(Number(status.deviceState.uptimeS)),
+              })}
             </span>
           )}
         </div>
@@ -101,8 +104,8 @@ export function TopBar({
         <button
           className={iconButton}
           onClick={onCycleTheme}
-          aria-label={`Color theme: ${theme}. Switch to ${nextTheme(theme)}.`}
-          title={`Color theme: ${theme}`}
+          aria-label={t("status.switchTheme", { theme, next: nextTheme(theme) })}
+          title={t("status.colorTheme", { theme })}
         >
           <ThemeIcon />
         </button>

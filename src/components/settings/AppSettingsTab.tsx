@@ -153,16 +153,16 @@ function SelfDeviceRow({ clients }: { clients: WifiClientJson[] }) {
   return (
     <SettingRow
       title={t("settings.yourDevice")}
-      info='The router lists every connected device the same way, so Dishylink cannot tell which one you are sitting at. Pick yours and it is marked "This device" in the network list, with no pause button of its own: pausing it would cut off the internet connection this dashboard needs to unpause it again, and you would have to undo it from another device or the Starlink app. Change or clear it here at any time.'
+      info={t("settings.yourDeviceInfo")}
       infoSeverity='warn'
       caption={t("settings.yourDeviceDesc")}
       note={
         saveFailed
-          ? "That could not be saved, so nothing changed. Try again."
+          ? t("settings.deviceSaveFailed")
           : clientId === null
-            ? "Until you pick one, no device can be paused."
+            ? t("settings.deviceNotSelected")
             : missing
-              ? "The device you picked is not connected right now. Pick it again when it is back."
+              ? t("settings.deviceMissing")
               : undefined
       }
     >
@@ -235,7 +235,7 @@ function BadgeModeRow() {
   return (
     <SettingRow
       title={t("settings.toolbarBadge")}
-      info='The count on the extension icon. Being away from your Starlink makes both devices unreachable, and the badge cannot tell that from a device that has actually failed — so "Device faults only" leaves both out. Alerts still reach the panel and your notifications either way.'
+      info={t("settings.toolbarBadgeInfo")}
       caption={t("settings.toolbarBadgeDesc")}
     >
       <Select value={mode} onValueChange={choose}>

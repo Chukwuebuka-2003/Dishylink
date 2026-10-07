@@ -24,11 +24,11 @@
 // beside the control rather than left as a switch that appears to do nothing.
 
 import { unlockAlertSound, playAlertSound } from "./alertSound";
+import i18n from "../i18n";
 import type { AlertSeverity } from "@core/alertDefinitions";
 import {
   notificationsRequested,
   notificationsProblem,
-  NOTIFICATIONS_ON_CONFIRMATION,
   type NotificationState,
 } from "@core/alertNotification";
 
@@ -107,7 +107,7 @@ function webNotificationsSupported(): boolean {
 function webState(): NotificationState {
   const wanted = localStorage.getItem(ENABLED_STORAGE_KEY) === "on";
   if (!webNotificationsSupported())
-    return { wanted, deliverable: false, reason: "This browser doesn’t support notifications." };
+    return { wanted, deliverable: false, reason: i18n.t("notifications.unsupported") };
   if (Notification.permission === "granted") return { wanted, deliverable: true };
   // A standing refusal and a dismissed prompt are different problems: only the
   // first is a setting to go and change, and naming it otherwise sends the user
@@ -117,8 +117,8 @@ function webState(): NotificationState {
     deliverable: false,
     reason:
       Notification.permission === "denied"
-        ? "Notifications are blocked for this page in your browser settings."
-        : "Notifications weren’t enabled.",
+        ? i18n.t("notifications.blocked")
+        : i18n.t("notifications.notEnabled"),
   };
 }
 
@@ -219,7 +219,7 @@ export async function toggleNotifications(): Promise<void> {
   if (host !== null) {
     setState(await host.setNotificationsWanted(true).catch(() => state));
     await host
-      .notify(NOTIFICATIONS_ON_CONFIRMATION.title, NOTIFICATIONS_ON_CONFIRMATION.body)
+      .notify(i18n.t("notifications.enabledTitle"), i18n.t("notifications.enabledBody"))
       .catch(() => {});
     // Sound the chime once, so its volume is a known quantity before it arrives
     // unannounced during an outage. Skipped when the confirmation could not be
@@ -232,7 +232,11 @@ export async function toggleNotifications(): Promise<void> {
   await Notification.requestPermission();
   setState(webState());
   if (notificationsBlockedReason() !== null) return;
-  sendNotification("test", NOTIFICATIONS_ON_CONFIRMATION.title, NOTIFICATIONS_ON_CONFIRMATION.body);
+  sendNotification(
+    "test",
+    i18n.t("notifications.enabledTitle"),
+    i18n.t("notifications.enabledBody"),
+  );
   playAlertSound("advisory");
 }
 

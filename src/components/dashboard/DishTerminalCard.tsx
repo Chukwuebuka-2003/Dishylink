@@ -1,6 +1,7 @@
 // Hardware, alignment, GPS, and network facts from the live status message.
 
 import type { DishStatusJson, DishReadyStatesJson } from "@core/dishClient";
+import { useTranslation } from "react-i18next";
 import { routerPresence } from "@core/routerPresence";
 import { dishModelFor, specForModel } from "../../lib/dishMesh";
 import { formatAttitudeState, formatRelativeTime, formatUptime } from "../../lib/format";
@@ -82,6 +83,7 @@ export function DishTerminalCard({
   /** When set on the card, an expand icon opens the full popup view. */
   onExpand?: () => void;
 }) {
+  const { t } = useTranslation();
   const alignment = status.alignmentStats;
   // The dish's position/navigation filter, in the app's own vocabulary
   // ("Converged"). Null when the dish doesn't report it.
@@ -169,7 +171,7 @@ export function DishTerminalCard({
         {!expanded && (
           <span className='flex items-center gap-2 text-[16px] font-semibold tracking-[0.005em] text-foreground'>
             <DishIcon size={26} className={stale ? "opacity-40" : undefined} />
-            Starlink Dish Terminal
+            {t("navigation.dishTerminal")}
           </span>
         )}
         <div className='flex items-center gap-2.5'>
@@ -190,7 +192,7 @@ export function DishTerminalCard({
             <button
               className='inline-flex h-7 w-7 cursor-pointer items-center justify-center rounded-full border-0 bg-transparent text-muted-foreground transition-colors hover:bg-[color-mix(in_srgb,var(--ink)_8%,var(--surface))] hover:text-foreground'
               onClick={onExpand}
-              aria-label='Open full terminal view'
+              aria-label={t("navigation.dishTerminal")}
             >
               <ExpandIcon />
             </button>

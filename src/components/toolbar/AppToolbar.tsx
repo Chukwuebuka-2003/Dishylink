@@ -1,4 +1,5 @@
 import { useSyncExternalStore } from "react";
+import { useTranslation } from "react-i18next";
 import { AnimatePresence } from "motion/react";
 import { readToolbarStyle, subscribeToToolbarStyle } from "../../lib/toolbarStyle";
 import { ToolbarDock } from "./ToolbarDock";
@@ -25,16 +26,6 @@ export interface ToolbarItem {
 // Ordered as the instrument is worked: the measurements taken against the dish
 // first, then the network it feeds, the account behind it, the sky it sees, and
 // the app's own settings last.
-const TOOLBAR_ITEMS: ToolbarItem[] = [
-  { id: "speedtest", label: "Speed test", Icon: SpeedometerIcon },
-  { id: "alignment", label: "Alignment", Icon: CrosshairIcon },
-  { id: "datausage", label: "Data usage", Icon: ChartLineIcon },
-  { id: "network", label: "Network", Icon: NetworkIcon },
-  { id: "account", label: "Account", Icon: UserIcon },
-  { id: "satellite", label: "Satellite view", Icon: PlanetIcon },
-  { id: "settings", label: "Settings", Icon: SettingsIcon },
-];
-
 interface AppToolbarProps {
   /** The open panel, so the active destination lights up. */
   activeId: string | null;
@@ -42,14 +33,37 @@ interface AppToolbarProps {
 }
 
 export function AppToolbar({ activeId, onSelect }: AppToolbarProps) {
+  const { t } = useTranslation();
   const toolbarStyle = useSyncExternalStore(subscribeToToolbarStyle, readToolbarStyle);
+  const items: ToolbarItem[] = [
+    { id: "speedtest", label: t("navigation.speedTest"), Icon: SpeedometerIcon },
+    { id: "alignment", label: t("navigation.alignment"), Icon: CrosshairIcon },
+    { id: "datausage", label: t("navigation.dataUsage"), Icon: ChartLineIcon },
+    { id: "network", label: t("navigation.network"), Icon: NetworkIcon },
+    { id: "account", label: t("navigation.account"), Icon: UserIcon },
+    { id: "satellite", label: t("navigation.satelliteView"), Icon: PlanetIcon },
+    { id: "settings", label: t("navigation.settings"), Icon: SettingsIcon },
+  ];
+  const navLabel = t("navigation.dashboardSections");
 
   return (
     <AnimatePresence mode='wait'>
       {toolbarStyle === "rail" ? (
-        <ToolbarRail key='rail' items={TOOLBAR_ITEMS} activeId={activeId} onSelect={onSelect} />
+        <ToolbarRail
+          key='rail'
+          items={items}
+          activeId={activeId}
+          onSelect={onSelect}
+          navLabel={navLabel}
+        />
       ) : (
-        <ToolbarDock key='dock' items={TOOLBAR_ITEMS} activeId={activeId} onSelect={onSelect} />
+        <ToolbarDock
+          key='dock'
+          items={items}
+          activeId={activeId}
+          onSelect={onSelect}
+          navLabel={navLabel}
+        />
       )}
     </AnimatePresence>
   );

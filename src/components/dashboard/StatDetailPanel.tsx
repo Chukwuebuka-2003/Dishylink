@@ -7,6 +7,7 @@
 // dashboard's window behind it.
 
 import { useMemo, useState } from "react";
+import { useTranslation } from "react-i18next";
 import { TelemetryChart, type ChartSeries } from "../shared/TelemetryChart";
 import { windowTail } from "../../lib/telemetryWindow";
 import { LatencyHistogram } from "./LatencyHistogram";
@@ -90,6 +91,7 @@ interface StatDetailPanelProps {
 }
 
 export function StatDetailPanel({ detail, samples }: StatDetailPanelProps) {
+  const { t, i18n } = useTranslation();
   // Local to the popup — decoupled from the dashboard's window. Fresh mount per
   // open (the panel unmounts on close), so this initializer picks the per-tile
   // default each time.
@@ -136,7 +138,7 @@ export function StatDetailPanel({ detail, samples }: StatDetailPanelProps) {
   const displayEnergyKWh = useHistorianEnergy ? energyHistory.data!.totalKWh : windowEnergy;
   const energyNote = useHistorianEnergy
     ? energyHistory.data!.coverage.fraction >= 0.95
-      ? "over the selected window"
+      ? t("metrics.selectedWindow")
       : `recorded ${Math.round(energyHistory.data!.coverage.fraction * 100)}% of this window`
     : coverageNote(windowed, windowMinutes);
 
@@ -170,9 +172,9 @@ export function StatDetailPanel({ detail, samples }: StatDetailPanelProps) {
     return null;
   }, [samples, secondaryGetValue]);
   const secondaryFigures = [
-    { label: "Average", ...detail.formatBig(secondaryAverage) },
+    { label: t("metrics.average"), ...detail.formatBig(secondaryAverage) },
     ...(secondaryCurrent !== null
-      ? [{ label: "Current", ...detail.formatBig(secondaryCurrent) }]
+      ? [{ label: t("metrics.current"), ...detail.formatBig(secondaryCurrent) }]
       : []),
   ];
 
@@ -183,15 +185,15 @@ export function StatDetailPanel({ detail, samples }: StatDetailPanelProps) {
     <>
       <FigureRow
         figures={[
-          { label: "Average", value: average.value, unit: average.unit },
-          { label: "Current", value: current.value, unit: current.unit },
+          { label: t("metrics.average"), value: average.value, unit: average.unit },
+          { label: t("metrics.current"), value: current.value, unit: current.unit },
         ]}
       />
       <SegmentedControl
         options={WINDOW_OPTIONS}
         value={String(windowMinutes)}
         onChange={(minutes) => setWindowMinutes(Number(minutes))}
-        label='Time window'
+        label={t("metrics.timeWindow")}
         className='mb-2.5'
       />
 
@@ -228,9 +230,9 @@ export function StatDetailPanel({ detail, samples }: StatDetailPanelProps) {
 
       {detail.distribution && (
         <section className='mt-4'>
-          <h3 className='text-[15px] font-semibold'>Latency distribution</h3>
+          <h3 className='text-[15px] font-semibold'>{t("metrics.latencyDistribution")}</h3>
           <p className='mt-0.5 mb-2 text-[12px] font-medium text-muted-foreground'>
-            over the selected window
+            {t("metrics.selectedWindow")}
           </p>
           <LatencyHistogram samples={windowed} series={detail.series} />
         </section>
@@ -269,14 +271,20 @@ export function StatDetailPanel({ detail, samples }: StatDetailPanelProps) {
             {displayEnergyKWh.toFixed(displayEnergyKWh < 1 ? 3 : 2)} kWh
           </div>
           <div className='mt-0.5 text-[12px] font-medium text-muted-foreground'>
-            energy used {energyNote}
+            {t("metrics.energyUsed", { note: energyNote })}
           </div>
         </div>
       )}
 
       {detail.showEnergyHistory && <EnergyHistoryPanel active />}
 
-      <Explainer title={`What is ${detail.label.toLowerCase()}?`}>{detail.explainer}</Explainer>
+      <Explainer
+        title={t("metrics.whatIs", {
+          metric: detail.label.toLocaleLowerCase(i18n.resolvedLanguage),
+        })}
+      >
+        {detail.explainer}
+      </Explainer>
     </>
   );
 }
