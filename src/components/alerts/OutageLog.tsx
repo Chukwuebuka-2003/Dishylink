@@ -5,6 +5,7 @@
 // raw jargon explained) via outageEventMeta.
 
 import { useState } from "react";
+import { useTranslation } from "react-i18next";
 import { canonicalCause, outageEventMeta, type OutageEvent } from "@core/telemetry";
 import type { OutageReport } from "@core/postmortem";
 import { formatClockTimeShort, formatDateTime, formatEventDuration } from "../../lib/format";
@@ -31,31 +32,32 @@ export function OutageLog({
   outageEvents: OutageEvent[];
   reports: OutageReport[];
 }) {
+  const { t, i18n } = useTranslation();
   const [openReport, setOpenReport] = useState<OutageReport | null>(null);
   const newestFirst = [...outageEvents].sort((a, b) => b.startMs - a.startMs);
   return (
     <div className='col-span-4 min-w-0 rounded-xl bg-card px-[18px] py-4'>
       <div className='mb-2.5 flex items-center justify-between gap-3'>
         <span className='text-[16px] font-semibold tracking-[0.005em] text-foreground'>
-          Events &amp; outages
+          {t("events.title")}
         </span>
         <span className='text-[12px] font-medium text-muted-foreground'>
-          {newestFirst.length} events
+          {t("events.count", { count: newestFirst.length })}
         </span>
       </div>
       {newestFirst.length === 0 ? (
-        <EmptyState className='py-[18px]'>no outages recorded in the current window</EmptyState>
+        <EmptyState className='py-[18px]'>{t("events.empty")}</EmptyState>
       ) : (
         <div className='thin-scroll flex max-h-[240px] flex-col overflow-y-auto'>
           {newestFirst.map((outage) => {
-            const meta = outageEventMeta(outage.cause);
+            const meta = outageEventMeta(outage.cause, t);
             return (
               <div
                 className='grid grid-cols-[auto_1fr_auto] items-center gap-2.5 border-b border-border px-0.5 py-2 text-[13px] font-medium last:border-b-0'
                 key={`${outage.startMs}-${canonicalCause(outage.cause)}`}
               >
                 <span className='font-mono text-[10.5px] whitespace-nowrap text-muted-foreground tabular-nums'>
-                  {formatClockTimeShort(outage.startMs)}
+                  {formatClockTimeShort(outage.startMs, i18n.language)}
                 </span>
                 <span className='flex min-w-0 items-center gap-2'>
                   <span
@@ -68,7 +70,7 @@ export function OutageLog({
                   {meta.tip && <InfoDot tip={meta.tip} />}
                 </span>
                 <span className='font-mono text-[10.5px] whitespace-nowrap text-muted-foreground tabular-nums'>
-                  {formatEventDuration(outage.durationMs)}
+                  {formatEventDuration(outage.durationMs, t)}
                 </span>
               </div>
             );

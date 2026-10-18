@@ -12,50 +12,35 @@
 // firmware answers with Unimplemented. The flags are the whole signal.
 
 import { useEffect, useMemo, useState } from "react";
+import { useTranslation } from "react-i18next";
 import { useNow } from "./useNow";
 import type { OutageEvent } from "@core/telemetry";
+import type { TranslationKey } from "@core/i18n/resources";
 import { apiRequest } from "../lib/apiHost";
 
 interface ThermalAlertSpec {
   /** Key on `alerts`, as emitted by the protobuf JSON mapping. */
   alertKey: string;
-  cause: string;
+  /** The row's title in the events log; it doubles as the event's cause. */
+  cause: TranslationKey;
   severity: OutageEvent["severity"];
-  onsetTitle: string;
-  onsetBody: string;
-  clearedTitle: string;
-  clearedBody: string;
 }
 
 const THERMAL_ALERTS: ThermalAlertSpec[] = [
   {
     alertKey: "thermalShutdown",
-    cause: "thermal shutdown",
+    cause: "events.thermalShutdownEpisode",
     severity: "critical",
-    onsetTitle: "Dish thermal shutdown",
-    onsetBody:
-      "The dish has shut itself down to avoid overheating. Service stays offline until it cools.",
-    clearedTitle: "Dish thermal shutdown ended",
-    clearedBody: "The dish has cooled enough to come back online.",
   },
   {
     alertKey: "thermalThrottle",
-    cause: "thermal throttle",
+    cause: "events.thermalThrottleEpisode",
     severity: "warning",
-    onsetTitle: "Dish thermally throttled",
-    onsetBody: "The dish is hot and is limiting performance to cool down. Expect reduced speeds.",
-    clearedTitle: "Dish thermal throttling ended",
-    clearedBody: "The dish has cooled down and is back to full performance.",
   },
   {
     alertKey: "powerSupplyThermalThrottle",
-    cause: "power supply thermal throttle",
+    cause: "events.powerSupplyThermalThrottleEpisode",
     severity: "warning",
-    onsetTitle: "Power supply thermally throttled",
-    onsetBody:
-      "The dish's power supply is hot and is limiting output. Check for airflow around it.",
-    clearedTitle: "Power supply throttling ended",
-    clearedBody: "The dish's power supply has cooled back to normal.",
   },
 ];
 
@@ -73,6 +58,7 @@ interface ThermalEpisodeJson {
  * the events log. Empty when the historian isn't running.
  */
 export function useThermalEvents(): OutageEvent[] {
+  const { t } = useTranslation();
   const [episodes, setEpisodes] = useState<ThermalEpisodeJson[]>([]);
   // An episode still running has no end, so its duration is measured against now
   // and grows while it runs. Taken from the ticking clock so it actually advances
@@ -106,14 +92,15 @@ export function useThermalEvents(): OutageEvent[] {
       const spec = SPEC_BY_ALERT_KEY.get(episode.alertKey);
       if (!spec) return [];
       const isOngoing = episode.endMs === null;
+      const label = t(spec.cause);
       return [
         {
           startMs: episode.startMs,
           durationMs: (episode.endMs ?? nowMs) - episode.startMs,
-          cause: isOngoing ? `${spec.cause} (ongoing)` : spec.cause,
+          cause: isOngoing ? t("events.ongoing", { label }) : label,
           severity: spec.severity,
         },
       ];
     });
-  }, [episodes, nowMs]);
+  }, [episodes, nowMs, t]);
 }
