@@ -1,4 +1,5 @@
 import { useRef, type ReactNode } from "react";
+import { useTranslation } from "react-i18next";
 import { Dialog as DialogPrimitive } from "radix-ui";
 
 interface PromptDialogProps {
@@ -20,6 +21,7 @@ export function PromptDialog({
   onLater,
   onNever,
 }: PromptDialogProps) {
+  const { t } = useTranslation();
   const content = useRef<HTMLDivElement>(null);
   return (
     <DialogPrimitive.Root open onOpenChange={(open) => !open && onLater()}>
@@ -46,7 +48,7 @@ export function PromptDialog({
             />
 
             <DialogPrimitive.Close
-              aria-label='Dismiss'
+              aria-label={t("prompts.dismiss")}
               className='absolute top-5 right-5 inline-flex size-8 cursor-pointer items-center justify-center rounded-full border-0 bg-transparent text-[13px] text-ink-secondary/60 transition-colors hover:bg-[color-mix(in_srgb,var(--ink)_8%,transparent)] hover:text-ink'
             >
               ✕
@@ -77,14 +79,14 @@ export function PromptDialog({
                   onClick={onLater}
                   className='cursor-pointer border-0 bg-transparent text-[13px] text-ink-secondary/80 transition-colors hover:text-ink'
                 >
-                  Maybe later
+                  {t("prompts.maybeLater")}
                 </button>
                 <button
                   type='button'
                   onClick={onNever}
                   className='cursor-pointer border-0 bg-transparent text-[12px] text-ink-secondary/45 transition-colors hover:text-ink-secondary'
                 >
-                  Don&rsquo;t ask again
+                  {t("prompts.dontAskAgain")}
                 </button>
               </div>
             </div>

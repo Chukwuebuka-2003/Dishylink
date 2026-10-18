@@ -1,4 +1,6 @@
 import { useState } from "react";
+import { useTranslation } from "react-i18next";
+import type { TranslationKey } from "@core/i18n/resources";
 import { Button } from "../ui/button";
 import { PromptDialog } from "./PromptDialog";
 import { SUPPORT_LINKS } from "./supportLinks";
@@ -23,18 +25,24 @@ function choose(canRate: boolean): PromptId | null {
   return null;
 }
 
-const FUNDING = [
-  { href: SUPPORT_LINKS.buyMeACoffee, icon: CoffeeIcon, label: "Buy Me a Coffee" },
+const FUNDING: {
+  href: string;
+  icon: typeof CoffeeIcon;
+  label: TranslationKey;
+  iconClassName?: string;
+}[] = [
+  { href: SUPPORT_LINKS.buyMeACoffee, icon: CoffeeIcon, label: "support.buyMeACoffee" },
   {
     href: SUPPORT_LINKS.githubSponsors,
     icon: HeartIcon,
-    label: "Become a GitHub Sponsor",
+    label: "support.githubSponsor",
     iconClassName: "text-[#ea4aaa]",
   },
-  { href: SUPPORT_LINKS.patreon, icon: PatreonIcon, label: "Become a Patreon" },
+  { href: SUPPORT_LINKS.patreon, icon: PatreonIcon, label: "support.patreon" },
 ];
 
 export function AppPrompts() {
+  const { t } = useTranslation();
   const store = reviewStore();
   const [showing, setShowing] = useState(() => choose(store !== null));
 
@@ -58,8 +66,8 @@ export function AppPrompts() {
     return (
       <PromptDialog
         icon={<StarIcon />}
-        title='Enjoying Dishylink?'
-        body="A rating takes ten seconds, but it's the one thing that helps other Starlink owners find the app."
+        title={t("prompts.ratingTitle")}
+        body={t("prompts.ratingBody")}
         onLater={later}
         onNever={never}
         actions={
@@ -68,7 +76,7 @@ export function AppPrompts() {
             className='w-full cursor-pointer'
             onClick={() => acted(reviewUrl(store))}
           >
-            Rate on {reviewStoreName(store)}
+            {t("prompts.rateOn", { store: reviewStoreName(store) })}
           </Button>
         }
       />
@@ -78,8 +86,8 @@ export function AppPrompts() {
   return (
     <PromptDialog
       icon={<HandHeartIcon />}
-      title='Dishylink is free, and always will be.'
-      body='I built it in my free time, because nothing like it existed. Your one-off or recurring contribution does a lot to keep it maintained and updated. Please show the project some support if you can!'
+      title={t("prompts.donationTitle")}
+      body={t("prompts.donationBody")}
       onLater={later}
       onNever={never}
       actions={FUNDING.map(({ href, icon: Icon, label, iconClassName }, i) => (
@@ -95,7 +103,7 @@ export function AppPrompts() {
           onClick={() => acted(href)}
         >
           <Icon className={iconClassName} />
-          {label}
+          {t(label)}
         </Button>
       ))}
     />

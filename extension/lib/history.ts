@@ -88,8 +88,11 @@ export interface AlertEpisode {
   startMs: number;
   /** null while the flag is still set. */
   endMs: number | null;
-  /** What was announced. Absent where the wording is a constant the UI looks up. */
+  /** What was announced: a catalog key the UI resolves in its own language, or
+   *  (on rows written by older builds) the English sentence itself. */
   label?: string;
+  /** Interpolation values for `label`, on alerts whose wording names a subject. */
+  labelVars?: Record<string, string | number>;
   severity?: AlertSeverity;
 }
 
@@ -200,6 +203,7 @@ function episodesForTransitions(
           startMs: transition.atMs,
           endMs: null,
           label: transition.spec.firing,
+          labelVars: transition.spec.vars,
           severity: transition.spec.severity,
         });
     } else if (open) {

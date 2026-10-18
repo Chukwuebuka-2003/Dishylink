@@ -1026,7 +1026,11 @@ function recordAlertTransitions(transitions: AlertTransition[]): void {
   for (const transition of transitions) {
     const { source, key, atMs, kind, spec } = transition;
     if (kind === "fired")
-      alertStore.open(source, key, atMs, { label: spec.firing, severity: spec.severity });
+      alertStore.open(source, key, atMs, {
+        label: spec.firing,
+        labelVars: spec.vars,
+        severity: spec.severity,
+      });
     else alertStore.close(source, key, atMs);
     // The service's diary. It runs unattended under launchd with no window and
     // no operator, so "did it see the outage?" is answerable only from what it
