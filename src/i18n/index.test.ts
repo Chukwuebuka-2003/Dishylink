@@ -54,17 +54,37 @@ describe("i18n setup", () => {
     expect(i18n.t("settings.language")).toBe("Idioma");
   });
 
-  it("keeps every locale in sync with the English translation keys", () => {
-    const flatten = (value: object, prefix = ""): string[] =>
-      Object.entries(value).flatMap(([key, child]) =>
-        typeof child === "object" && child !== null
-          ? flatten(child, `${prefix}${key}.`)
-          : [`${prefix}${key}`],
-      );
-    const englishKeys = flatten(resources.en.translation).sort();
-
-    for (const resource of Object.values(resources)) {
-      expect(flatten(resource.translation).sort()).toEqual(englishKeys);
+  // Compared by base key, not literal key: a language's plural forms (_one,
+  // _few, _many…) are its own business, so long as the message itself exists.
+  // Placeholders are compared too — a translation that drops {{count}} or
+  // renames it renders the raw token.
+  const PLURAL_SUFFIX = /_(zero|one|two|few|many|other)$/;
+  const flatten = (value: object, prefix = ""): [string, string][] =>
+    Object.entries(value).flatMap(([key, child]) =>
+      typeof child === "object" && child !== null
+        ? flatten(child, `${prefix}${key}.`)
+        : [[`${prefix}${key}`, String(child)]],
+    );
+  const messages = (catalog: object) => {
+    const byBase = new Map<string, Set<string>>();
+    for (const [key, text] of flatten(catalog)) {
+      const base = key.replace(PLURAL_SUFFIX, "");
+      const tokens = byBase.get(base) ?? new Set<string>();
+      for (const token of text.match(/\{\{\s*\w+/g) ?? []) tokens.add(token.replace(/\W/g, ""));
+      for (const tag of text.match(/<\w+>/g) ?? []) tokens.add(tag);
+      byBase.set(base, tokens);
     }
-  });
+    return byBase;
+  };
+  const english = messages(resources.en.translation);
+
+  for (const [code, resource] of Object.entries(resources)) {
+    it(`${code} carries every English message with the same placeholders`, () => {
+      const catalog = messages(resource.translation);
+      expect([...catalog.keys()].sort()).toEqual([...english.keys()].sort());
+      for (const [base, tokens] of english) {
+        expect([...catalog.get(base)!].sort(), base).toEqual([...tokens].sort());
+      }
+    });
+  }
 });

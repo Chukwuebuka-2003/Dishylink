@@ -2,7 +2,7 @@
 // under test is which keys this module writes and reads, not the browser's
 // implementation of localStorage.
 
-import { beforeEach, describe, expect, it } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 const store = new Map<string, string>();
 globalThis.localStorage = {
@@ -62,5 +62,33 @@ describe("locale store", () => {
 
   it("lists all supported locales with labels", () => {
     expect(SUPPORTED_LOCALES.map((l) => l.code)).toEqual(["en", "es", "fr", "de", "pt"]);
+  });
+});
+
+describe("browser language detection", () => {
+  afterEach(() => {
+    vi.unstubAllGlobals();
+    store.clear();
+  });
+
+  it("strips the region from the browser language", () => {
+    vi.stubGlobal("navigator", { language: "pt-BR", languages: ["pt-BR"] });
+    expect(readLocale()).toBe("pt");
+  });
+
+  it("takes the first supported entry from the preference list", () => {
+    vi.stubGlobal("navigator", { language: "nl-NL", languages: ["nl-NL", "de-DE", "en"] });
+    expect(readLocale()).toBe("de");
+  });
+
+  it("falls back to English when nothing in the list is supported", () => {
+    vi.stubGlobal("navigator", { language: "ja-JP", languages: ["ja-JP", "zh-CN"] });
+    expect(readLocale()).toBe(DEFAULT_LOCALE);
+  });
+
+  it("prefers a stored choice over the browser language", () => {
+    vi.stubGlobal("navigator", { language: "de-DE", languages: ["de-DE"] });
+    store.set(LOCALE_STORAGE_KEY, "fr");
+    expect(readLocale()).toBe("fr");
   });
 });

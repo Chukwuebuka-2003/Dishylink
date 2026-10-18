@@ -14,7 +14,9 @@ export function SearchingHero() {
         {/* the rotating sweep */}
         <div className='absolute inset-0 animate-[sweep_2.6s_linear_infinite] [background:conic-gradient(from_0deg,transparent_78%,color-mix(in_srgb,var(--ink)_45%,transparent))]' />
       </div>
-      <div className='text-[19px] font-bold tracking-[0.18em]'>{t("metrics.searching")}</div>
+      <div className='text-[19px] font-bold tracking-[0.18em] uppercase'>
+        {t("metrics.searching")}
+      </div>
       <p className='max-w-[420px] text-[13.5px] text-ink-secondary'>
         <Trans
           i18nKey='metrics.searchingHelp'

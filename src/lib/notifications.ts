@@ -29,6 +29,7 @@ import type { AlertSeverity } from "@core/alertDefinitions";
 import {
   notificationsRequested,
   notificationsProblem,
+  notificationsOnConfirmation,
   type NotificationState,
 } from "@core/alertNotification";
 
@@ -216,11 +217,10 @@ export async function toggleNotifications(): Promise<void> {
   // one we get — open the context here so later alerts can actually chime.
   unlockAlertSound();
 
+  const confirmation = notificationsOnConfirmation(i18n.t);
   if (host !== null) {
     setState(await host.setNotificationsWanted(true).catch(() => state));
-    await host
-      .notify(i18n.t("notifications.enabledTitle"), i18n.t("notifications.enabledBody"))
-      .catch(() => {});
+    await host.notify(confirmation.title, confirmation.body).catch(() => {});
     // Sound the chime once, so its volume is a known quantity before it arrives
     // unannounced during an outage. Skipped when the confirmation could not be
     // delivered: nothing about this channel is working, and a chime would suggest
@@ -232,11 +232,7 @@ export async function toggleNotifications(): Promise<void> {
   await Notification.requestPermission();
   setState(webState());
   if (notificationsBlockedReason() !== null) return;
-  sendNotification(
-    "test",
-    i18n.t("notifications.enabledTitle"),
-    i18n.t("notifications.enabledBody"),
-  );
+  sendNotification("test", confirmation.title, confirmation.body);
   playAlertSound("advisory");
 }
 

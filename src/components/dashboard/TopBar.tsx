@@ -9,6 +9,7 @@ import { SunIcon } from "../../assets/icons/SunIcon";
 import { nextTheme, type ThemeName } from "../../lib/theme";
 import type { DishConnectionState } from "../../hooks/useDishTelemetry";
 import type { DishStatusJson } from "@core/dishClient";
+import type { TranslationKey } from "../../i18n";
 import { formatUptime } from "../../lib/format";
 import { AlertsMenu } from "../alerts/AlertsMenu";
 import { SupportMenu } from "../shared/SupportMenu";
@@ -25,6 +26,12 @@ interface TopBarProps {
   notificationsBlockedReason: string | null;
   onToggleNotifications: () => void;
 }
+
+const CONNECTION_LABEL: Record<DishConnectionState, TranslationKey> = {
+  connecting: "status.connecting",
+  online: "status.online",
+  unreachable: "status.dishUnreachable",
+};
 
 // The status dot: a 7px disc that pulses while the link is live or being found,
 // and sits still once the dish is unreachable.
@@ -62,11 +69,6 @@ export function TopBar({
 }: TopBarProps) {
   const { t } = useTranslation();
   const ThemeIcon = THEME_ICON[theme];
-  const connectionLabel: Record<DishConnectionState, string> = {
-    connecting: t("status.connecting"),
-    online: t("status.online"),
-    unreachable: t("status.dishUnreachable"),
-  };
 
   return (
     <header className='sticky top-0 z-20 flex items-center justify-between gap-4 bg-gradient-to-b from-[color-mix(in_srgb,var(--page)_72%,transparent)] via-[color-mix(in_srgb,var(--page)_42%,transparent)] to-transparent px-6 pt-3.5 pb-4'>
@@ -78,7 +80,7 @@ export function TopBar({
         <div className='flex items-center gap-2.5'>
           <span className={statusItem}>
             <span className={`${statusDot} ${CONNECTION_DOT[connectionState]} `} />
-            {connectionLabel[connectionState]}
+            {t(CONNECTION_LABEL[connectionState])}
           </span>
           {status?.deviceInfo?.countryCode && (
             <span className={`${statusItem} ${statusDivider}`}>
@@ -88,7 +90,7 @@ export function TopBar({
           {status?.deviceState?.uptimeS && (
             <span className={`${statusItem} ${statusDivider}`}>
               {t("status.uptime", {
-                duration: formatUptime(Number(status.deviceState.uptimeS)),
+                duration: formatUptime(Number(status.deviceState.uptimeS), t),
               })}
             </span>
           )}

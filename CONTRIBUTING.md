@@ -76,18 +76,25 @@ instead of being duplicated in a component.
 
 To add a language:
 
-1. Copy `src/i18n/locales/en.json`, translate the values, and preserve every key
-   and interpolation token such as `{{count}}`.
+1. Copy `src/i18n/locales/en.json`, translate the values, and preserve every
+   interpolation token such as `{{count}}` and every tag such as `<address>`.
+   Translate the whole sentence: the English says what it says for a reason,
+   and a shorter rendering drops a warning or a caveat someone relied on.
 2. Add the locale code and its native-language label to `SUPPORTED_LOCALES` in
    `src/lib/locale.ts`.
 3. Import the catalog and register it in `resources` in `src/i18n/index.ts`.
-4. Run `npm test -- --run src/i18n/index.test.ts`. The catalog-parity test names
-   missing or extra keys before a translation can drift out of sync.
+4. Run `npm test -- --run src/i18n/index.test.ts`. The parity test names any
+   message that is missing, extra, or has lost a placeholder.
 
-Dishylink falls back to English at runtime, but completed catalogs are kept in
-key-for-key parity so users never get a mixed-language screen. Use i18next
-plural keys (`_one`, `_other`) for counts, interpolation for dynamic text, and
-the selected i18next locale for number or date formatting.
+Every message in English must also be in every other catalog; a language may
+carry its own plural forms (`_one`, `_few`, `_many`, `_other`). Interpolate
+dynamic text and format numbers with `{{value, number}}` rather than by hand.
+Not every panel reads from the catalog yet — a string that is still a literal in
+a component is a string to move, not to translate in place.
+
+The existing catalogs were machine-translated from the English and reviewed for
+completeness, not by native speakers. Corrections from native speakers are
+welcome as ordinary PRs.
 
 ## Pull requests
 

@@ -4,6 +4,7 @@
 
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
+import { errorText } from "../../lib/errorText";
 import { ChevronRightIcon } from "lucide-react";
 import { actionButton } from "../ui/action-button";
 import { Button } from "@/components/ui/button";
@@ -145,7 +146,7 @@ export function DangerAction({
     try {
       setResult(await onRun());
     } catch (error) {
-      setResult(t("common.failed", { message: (error as Error).message }));
+      setResult(t("common.failed", { message: errorText(error) }));
     } finally {
       setBusy(false);
       setArmed(false);

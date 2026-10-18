@@ -230,7 +230,11 @@ function SelfDeviceRow({ clients }: { clients: WifiClientJson[] }) {
         <SelectTrigger className={triggerClass} style={{ maxWidth: 178 }}>
           <SelectValue>
             <span className='truncate'>
-              {named ? displayName(named) : missing ? t("common.notConnected") : t("common.choose")}
+              {named
+                ? displayName(named, t)
+                : missing
+                  ? t("common.notConnected")
+                  : t("common.choose")}
             </span>
           </SelectValue>
         </SelectTrigger>
@@ -250,7 +254,7 @@ function SelfDeviceRow({ clients }: { clients: WifiClientJson[] }) {
               className={selectItemClass}
             >
               <span className='flex flex-col items-start gap-px'>
-                <span>{displayName(device)}</span>
+                <span>{displayName(device, t)}</span>
                 <span className='text-[10.5px] text-muted-foreground'>
                   {[device.macAddress, device.ipAddress].filter(Boolean).join(" · ")}
                 </span>

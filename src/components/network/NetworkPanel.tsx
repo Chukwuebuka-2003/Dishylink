@@ -5,6 +5,7 @@
 // a device, and hands off. The rows and both detail views live beside it.
 
 import { useCallback, useEffect, useMemo, useState } from "react";
+import { Trans, useTranslation } from "react-i18next";
 import {
   CLIENTS_POLL_MS,
   CLOUD_CLIENTS_POLL_MS,
@@ -54,11 +55,12 @@ export function NetworkPanel({
   unreachable: RouterUnreachable | null;
   onClose: () => void;
 }) {
+  const { t } = useTranslation();
   const [selectedKey, setSelectedKey] = useState<string | null>(null);
 
   return (
     <DetailsModal
-      title='Network'
+      title={t("navigation.network")}
       size='wide'
       onClose={onClose}
       onBack={selectedKey ? () => setSelectedKey(null) : undefined}
@@ -86,6 +88,7 @@ function NetworkPanelBody({
   selectedKey: string | null;
   onSelect: (entryKey: string | null) => void;
 }) {
+  const { t } = useTranslation();
   const [tab, setTab] = useState<"connected" | "nodes" | "rules">("connected");
   useOuiRegistry();
   // Radio temps come from the historian, not the router directly. Poll only
@@ -159,7 +162,7 @@ function NetworkPanelBody({
       const held = byKey.get(clientKey);
       byKey.set(clientKey, {
         clientKey,
-        name: displayName(client),
+        name: displayName(client, t),
         macAddress: client.macAddress ?? held?.macAddress ?? "",
         active: true,
         lastSeenMs: held?.lastSeenMs ?? 0,
@@ -167,10 +170,10 @@ function NetworkPanelBody({
       });
     }
     return [...byKey.values()];
-  }, [totals, devices, resolveMeterKey]);
+  }, [totals, devices, resolveMeterKey, t]);
 
   if (network.routerReachable === null) {
-    return <Loading message='Contacting the router…' />;
+    return <Loading message={t("settings.contactingRouter")} />;
   }
   // Branch on the diagnosis rather than on `routerReachable` again: it is
   // derived from that same flag, so this cannot render an empty callout.
@@ -197,7 +200,7 @@ function NetworkPanelBody({
     );
   }
 
-  const nodes = buildNodeRoster(network.clients, network.wifiConfig);
+  const nodes = buildNodeRoster(network.clients, network.wifiConfig, t);
 
   const selectedNode = selectedKey
     ? nodes.find((node) => node.client?.macAddress === selectedKey)
@@ -248,14 +251,17 @@ function NetworkPanelBody({
     <div>
       <SegmentedControl
         variant='glider'
-        label='Network view'
+        label={t("network.viewLabel")}
         className='mb-3.5'
         value={tab}
         onChange={setTab}
         options={[
-          { value: "connected", label: <TabLabel text='Connected' count={devices.length} /> },
-          { value: "nodes", label: <TabLabel text='Nodes' count={nodes.length} /> },
-          { value: "rules", label: <TabLabel text='Rules' /> },
+          {
+            value: "connected",
+            label: <TabLabel text={t("network.tabConnected")} count={devices.length} />,
+          },
+          { value: "nodes", label: <TabLabel text={t("network.tabNodes")} count={nodes.length} /> },
+          { value: "rules", label: <TabLabel text={t("network.tabRules")} /> },
         ]}
       />
 
@@ -265,15 +271,14 @@ function NetworkPanelBody({
         <Callout
           tone='info'
           className='mb-2.5'
-          dismissLabel='Dismiss this note'
+          dismissLabel={t("network.dismissNote")}
           onDismiss={() => {
             setAccountRosterNoticeDismissed(true);
             setNoticeDismissed(true);
           }}
         >
-          {unreachable ? `${unreachable.message} ` : ""}These devices come from your Starlink
-          account, so they refresh every {CLOUD_CLIENTS_POLL_MS / 1000}&nbsp;s and carry no live
-          throughput.
+          {unreachable ? `${unreachable.message} ` : ""}
+          {t("network.cloudRosterNote", { seconds: CLOUD_CLIENTS_POLL_MS / 1000 })}
         </Callout>
       )}
 
@@ -283,12 +288,12 @@ function NetworkPanelBody({
             <div className='mb-2 text-[11.5px] text-destructive'>{network.accountRosterError}</div>
           )}
           <ListSection
-            caption={`${devices.length} device${devices.length === 1 ? "" : "s"} · ${
+            caption={`${t("network.deviceCount", { count: devices.length })} · ${
               viaCloud
                 ? network.accountRosterError
-                  ? "via your Starlink account, no longer refreshing"
-                  : `via your Starlink account, refreshed every ${CLOUD_CLIENTS_POLL_MS / 1000} s`
-                : `live from the router, refreshed every ${CLIENTS_POLL_MS / 1000} s`
+                  ? t("network.viaAccountStale")
+                  : t("network.viaAccount", { seconds: CLOUD_CLIENTS_POLL_MS / 1000 })
+                : t("network.liveFromRouter", { seconds: CLIENTS_POLL_MS / 1000 })
             }`}
           >
             {sortedDevices.map((client, index) => (
@@ -302,35 +307,34 @@ function NetworkPanelBody({
           </ListSection>
           {(accountUnavailable || needsSelfDevice) && (
             <Callout tone='info' iconSeverity='warn' className='mt-2.5'>
-              Pause feature disabled! To enable,{" "}
-              {accountUnavailable && (
-                <>
-                  <button
-                    type='button'
-                    className={inlineLinkButton}
-                    onClick={() => requestPanel("account")}
-                  >
-                    {needsAccount ? "sign in" : "reconnect"}
-                  </button>{" "}
-                  to your Starlink account
-                </>
-              )}
-              {accountUnavailable && needsSelfDevice && " and "}
-              {needsSelfDevice && (
-                <>
-                  pick the current device you are using under app&rsquo;s{" "}
-                  <button
-                    type='button'
-                    className={inlineLinkButton}
-                    onClick={() => requestPanel("settings", "app")}
-                  >
-                    settings
-                  </button>
-                </>
-              )}
-              .
-              {needsSelfDevice &&
-                " That keeps your own device off the list of things this app can cut off."}
+              <Trans
+                i18nKey={
+                  accountUnavailable && needsSelfDevice
+                    ? "network.pauseDisabledBoth"
+                    : accountUnavailable
+                      ? "network.pauseDisabledAccount"
+                      : "network.pauseDisabledSelf"
+                }
+                values={{
+                  action: needsAccount ? t("network.signIn") : t("network.reconnect"),
+                }}
+                components={{
+                  account: (
+                    <button
+                      type='button'
+                      className={inlineLinkButton}
+                      onClick={() => requestPanel("account")}
+                    />
+                  ),
+                  settings: (
+                    <button
+                      type='button'
+                      className={inlineLinkButton}
+                      onClick={() => requestPanel("settings", "app")}
+                    />
+                  ),
+                }}
+              />
             </Callout>
           )}
           {/* The device list is where a split record is noticed — one name on two
@@ -352,7 +356,7 @@ function NetworkPanelBody({
       )}
 
       {tab === "nodes" && (
-        <ListSection caption='Router and mesh nodes'>
+        <ListSection caption={t("network.nodesCaption")}>
           {nodes.map((node) => (
             <NetworkRow
               key={node.key}
@@ -361,7 +365,7 @@ function NetworkPanelBody({
               sub={node.status}
               band={
                 node.devices.length
-                  ? `${node.devices.length} device${node.devices.length === 1 ? "" : "s"}`
+                  ? t("network.deviceCount", { count: node.devices.length })
                   : undefined
               }
               showChevron={node.connected}

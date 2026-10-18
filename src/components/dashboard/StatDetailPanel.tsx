@@ -12,7 +12,7 @@ import { TelemetryChart, type ChartSeries } from "../shared/TelemetryChart";
 import { windowTail } from "../../lib/telemetryWindow";
 import { LatencyHistogram } from "./LatencyHistogram";
 import { EnergyHistoryPanel } from "./EnergyHistoryPanel";
-import { averageOf, energyKWh, coverageNote } from "../../lib/statDetails";
+import { averageOf, energyKWh, windowCoverage, type WindowCoverage } from "../../lib/statDetails";
 import { useEnergyHistory, type EnergyRange } from "../../hooks/useEnergyHistory";
 import { useNow } from "../../hooks/useNow";
 import type { TelemetrySample, OutageEvent } from "@core/telemetry";
@@ -36,6 +36,9 @@ export interface StatDetail {
   series: ChartSeries[];
   formatValue: (value: number) => string;
   formatTick?: (value: number) => string;
+  /** Heading over the explainer — a full sentence per metric rather than one
+   *  built from `label`, since not every language lowercases a noun mid-sentence. */
+  explainerTitle: string;
   explainer: string;
   outageEvents?: OutageEvent[];
   /** Hard y-axis ceiling, for series with a real upper bound (percentages). */
@@ -91,7 +94,7 @@ interface StatDetailPanelProps {
 }
 
 export function StatDetailPanel({ detail, samples }: StatDetailPanelProps) {
-  const { t, i18n } = useTranslation();
+  const { t } = useTranslation();
   // Local to the popup — decoupled from the dashboard's window. Fresh mount per
   // open (the panel unmounts on close), so this initializer picks the per-tile
   // default each time.
@@ -136,11 +139,22 @@ export function StatDetailPanel({ detail, samples }: StatDetailPanelProps) {
     historianRange && !energyHistory.unavailable && energyHistory.data,
   );
   const displayEnergyKWh = useHistorianEnergy ? energyHistory.data!.totalKWh : windowEnergy;
+  // Full sentences per case rather than "energy used" + a coverage phrase: the
+  // two halves only join in that order in English.
+  const liveEnergyNote = (coverage: WindowCoverage): string => {
+    if (coverage.kind === "none") return t("metrics.energyUsedNothing");
+    if (coverage.kind === "full") return t("metrics.energyUsedFull");
+    return coverage.coveredMinutes >= 1
+      ? t("metrics.energyUsedMinutes", { count: Math.round(coverage.coveredMinutes) })
+      : t("metrics.energyUsedUnderMinute");
+  };
   const energyNote = useHistorianEnergy
     ? energyHistory.data!.coverage.fraction >= 0.95
-      ? t("metrics.selectedWindow")
-      : `recorded ${Math.round(energyHistory.data!.coverage.fraction * 100)}% of this window`
-    : coverageNote(windowed, windowMinutes);
+      ? t("metrics.energyUsedFull")
+      : t("metrics.energyUsedPercent", {
+          percent: Math.round(energyHistory.data!.coverage.fraction * 100),
+        })
+    : liveEnergyNote(windowCoverage(windowed, windowMinutes));
 
   // An empty chart is just a confusing box; say so in words until a reading
   // lands. Finite-checked, not merely non-null: a snapshot written before this
@@ -270,21 +284,13 @@ export function StatDetailPanel({ detail, samples }: StatDetailPanelProps) {
           <div className='text-[23px] font-bold'>
             {displayEnergyKWh.toFixed(displayEnergyKWh < 1 ? 3 : 2)} kWh
           </div>
-          <div className='mt-0.5 text-[12px] font-medium text-muted-foreground'>
-            {t("metrics.energyUsed", { note: energyNote })}
-          </div>
+          <div className='mt-0.5 text-[12px] font-medium text-muted-foreground'>{energyNote}</div>
         </div>
       )}
 
       {detail.showEnergyHistory && <EnergyHistoryPanel active />}
 
-      <Explainer
-        title={t("metrics.whatIs", {
-          metric: detail.label.toLocaleLowerCase(i18n.resolvedLanguage),
-        })}
-      >
-        {detail.explainer}
-      </Explainer>
+      <Explainer title={detail.explainerTitle}>{detail.explainer}</Explainer>
     </>
   );
 }

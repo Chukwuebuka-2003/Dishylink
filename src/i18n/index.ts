@@ -1,19 +1,10 @@
 import i18n from "i18next";
 import { initReactI18next } from "react-i18next";
-import { readLocale, subscribeToLocale } from "../lib/locale";
-import en from "./locales/en.json";
-import es from "./locales/es.json";
-import fr from "./locales/fr.json";
-import de from "./locales/de.json";
-import pt from "./locales/pt.json";
+import { resources } from "@core/i18n/resources";
+import { readLocale, subscribeToLocale, syncLocaleToHost } from "../lib/locale";
 
-export const resources = {
-  en: { translation: en },
-  es: { translation: es },
-  fr: { translation: fr },
-  de: { translation: de },
-  pt: { translation: pt },
-} as const;
+export type { TranslationKey } from "@core/i18n/resources";
+export { resources };
 
 void i18n.use(initReactI18next).init({
   resources,
@@ -32,6 +23,12 @@ function setDocumentLanguage(language: string): void {
 
 setDocumentLanguage(readLocale());
 i18n.on("languageChanged", setDocumentLanguage);
+
+// The host process (desktop main, extension worker) words its own notifications
+// and menus, so it is told which language this window settled on — including a
+// detected one that was never stored.
+syncLocaleToHost(readLocale());
+i18n.on("languageChanged", (language) => syncLocaleToHost(language));
 
 // Re-align i18next whenever the user changes the locale setting
 subscribeToLocale(() => {

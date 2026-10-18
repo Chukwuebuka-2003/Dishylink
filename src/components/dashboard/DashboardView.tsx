@@ -16,13 +16,13 @@ import { DishTerminalCard } from "./DishTerminalCard";
 import { SegmentedControl } from "../ui/segmented-control";
 import { SectionCard } from "../ui/section-card";
 import {
-  THROUGHPUT_SERIES,
-  LATENCY_SERIES,
-  POWER_SERIES,
+  throughputSeries,
+  latencySeries,
+  powerSeries,
   buildStatDetails,
 } from "../../lib/statDetails";
 import { DetailsModal } from "../ui/details-modal";
-import { StatDetailPanel, type StatDetail } from "./StatDetailPanel";
+import { StatDetailPanel } from "./StatDetailPanel";
 import { formatThroughputLabel, formatThroughputTick } from "../../lib/format";
 import { AppPrompts } from "../shared/AppPrompts";
 
@@ -38,6 +38,8 @@ const CHART_TIME_RANGE_FILTER_OPTIONS = CHART_TIME_RANGES.map((range) => ({
 }));
 
 const legendItem = "inline-flex items-center gap-1.5 text-[12px] font-medium text-ink-secondary";
+
+const THROUGHPUT_LEGEND_COLORS = ["--series-down", "--series-up"];
 
 interface DashboardViewProps {
   status: DishStatusJson | null;
@@ -86,75 +88,31 @@ export function DashboardView({
   onOpenSatelliteView,
   onExpandTerminal,
 }: DashboardViewProps) {
-  const { t, i18n } = useTranslation();
+  const { t } = useTranslation();
   const [openDetailId, setOpenDetailId] = useState<string | null>(null);
   const latencyQuality = useLatencyHistory("1h", true);
-  const statDetails = useMemo<Record<string, StatDetail>>(() => {
-    const details = buildStatDetails({
-      status,
-      currentPowerW: livePowerW,
-      powerWindowEndMs,
-      recentPingSuccessPercent,
-      outageEvents,
-    });
-    return {
-      ...details,
-      download: {
-        ...details.download,
-        label: t("metrics.download"),
-        explainer: t("metrics.downloadExplainer"),
-        series: details.download.series.map((series) => ({
-          ...series,
-          label: t("metrics.download"),
-        })),
-      },
-      upload: {
-        ...details.upload,
-        label: t("metrics.upload"),
-        explainer: t("metrics.uploadExplainer"),
-        series: details.upload.series.map((series) => ({
-          ...series,
-          label: t("metrics.upload"),
-        })),
-      },
-      latency: {
-        ...details.latency,
-        label: t("metrics.latency"),
-        explainer: t("metrics.latencyExplainer"),
-        series: details.latency.series.map((series) => ({
-          ...series,
-          label: series.id === "router-latency" ? t("common.router") : t("common.starlink"),
-        })),
-      },
-      pingSuccess: {
-        ...details.pingSuccess,
-        label: t("metrics.pingSuccess"),
-        modalTitle: t("metrics.starlinkPingSuccess"),
-        explainer: t("metrics.pingExplainer"),
-        secondaryChart: details.pingSuccess.secondaryChart
-          ? {
-              ...details.pingSuccess.secondaryChart,
-              title: t("metrics.routerPingSuccess"),
-              note: t("metrics.routerPingNote"),
-              emptyNote: t("metrics.routerPingEmpty"),
-              series: details.pingSuccess.secondaryChart.series.map((series) => ({
-                ...series,
-                label: t("common.router"),
-              })),
-            }
-          : undefined,
-      },
-      power: {
-        ...details.power,
-        label: t("metrics.powerDraw"),
-        explainer: t("metrics.powerExplainer"),
-        series: details.power.series.map((series) => ({
-          ...series,
-          label: t("metrics.powerDraw"),
-        })),
-      },
-    };
-  }, [status, livePowerW, powerWindowEndMs, recentPingSuccessPercent, outageEvents, t]);
+  // Memoised on `t` so each chart keeps one series array per language and its
+  // bucket-binning memo is not invalidated every render.
+  const chartSeries = useMemo(
+    () => ({
+      throughput: throughputSeries(t),
+      latency: latencySeries(t),
+      power: powerSeries(t),
+    }),
+    [t],
+  );
+  const statDetails = useMemo(
+    () =>
+      buildStatDetails({
+        status,
+        currentPowerW: livePowerW,
+        powerWindowEndMs,
+        recentPingSuccessPercent,
+        outageEvents,
+        t,
+      }),
+    [status, livePowerW, powerWindowEndMs, recentPingSuccessPercent, outageEvents, t],
+  );
 
   const openDetail = openDetailId ? statDetails[openDetailId] : null;
   const detailModal = openDetail && (
@@ -259,11 +217,7 @@ export function DashboardView({
       value: ((status?.obstructionStats?.fractionObstructed ?? 0) * 100).toFixed(2),
       unit: "%",
       caption: status?.obstructionStats?.patchesValid
-        ? t("metrics.patchesMapped", {
-            count: new Intl.NumberFormat(i18n.resolvedLanguage).format(
-              status.obstructionStats.patchesValid,
-            ),
-          })
+        ? t("metrics.patchesMapped", { count: status.obstructionStats.patchesValid })
         : t("metrics.allTimeView"),
     },
   ];
@@ -295,24 +249,18 @@ export function DashboardView({
         >
           <TelemetryChart
             samples={chartSamples}
-            series={THROUGHPUT_SERIES.map((series) => ({
-              ...series,
-              label: series.id === "down" ? t("metrics.download") : t("metrics.upload"),
-            }))}
+            series={chartSeries.throughput}
             windowMinutes={windowMinutes}
             formatValue={formatThroughputLabel}
             formatTick={formatThroughputTick}
             outageEvents={outageEvents}
           />
           <div className='mt-2 flex items-center justify-center gap-3.5'>
-            {[
-              { label: t("metrics.download"), colorVar: "--series-down" },
-              { label: t("metrics.upload"), colorVar: "--series-up" },
-            ].map((entry) => (
-              <span key={entry.label} className={legendItem}>
+            {chartSeries.throughput.map((entry, index) => (
+              <span key={entry.id} className={legendItem}>
                 <span
                   className='size-[9px] flex-none rounded-full'
-                  style={{ background: `var(${entry.colorVar})` }}
+                  style={{ background: `var(${THROUGHPUT_LEGEND_COLORS[index]})` }}
                 />{" "}
                 {entry.label}
               </span>
@@ -336,7 +284,7 @@ export function DashboardView({
         >
           <TelemetryChart
             samples={chartSamples}
-            series={LATENCY_SERIES}
+            series={chartSeries.latency}
             windowMinutes={windowMinutes}
             formatValue={(value) => `${value.toFixed(0)} ms`}
             outageEvents={outageEvents}
@@ -354,7 +302,7 @@ export function DashboardView({
         >
           <TelemetryChart
             samples={powerChartSamples}
-            series={POWER_SERIES}
+            series={chartSeries.power}
             windowMinutes={windowMinutes}
             formatValue={(value) => `${value.toFixed(0)} W`}
             windowEndMs={powerWindowEndMs}

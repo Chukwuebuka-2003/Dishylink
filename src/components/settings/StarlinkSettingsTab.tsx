@@ -20,6 +20,7 @@ import {
 import type { DishClient, DishStatusJson, SnowMeltMode } from "@core/dishClient";
 import type { useDishSettings } from "../../hooks/useDishSettings";
 import { AccountRequiredError } from "../../lib/dishConfigUpdate";
+import { errorText } from "../../lib/errorText";
 import { AccountRequiredNotice } from "../shared/AccountRequiredNotice";
 import {
   DangerAction,
@@ -32,19 +33,31 @@ import {
 import { formatClock12, localMinutesToUtcMinutes, utcMinutesToLocalMinutes } from "./sleepSchedule";
 import { TimePicker } from "./TimePicker";
 import { UPDATE_WINDOWS, updateWindowFor } from "./updateWindow";
+import type { TranslationKey } from "../../i18n";
+
+const SNOW_MELT_LABEL: Record<SnowMeltMode, TranslationKey> = {
+  AUTO: "common.automatic",
+  ALWAYS_ON: "common.alwaysOn",
+  ALWAYS_OFF: "common.off",
+};
+
+const SNOW_MELT_DESCRIPTION: Record<SnowMeltMode, TranslationKey> = {
+  AUTO: "settings.snowAutoDesc",
+  ALWAYS_ON: "settings.snowAlwaysDesc",
+  ALWAYS_OFF: "settings.snowOffDesc",
+};
+
+// The official app's wording for each reboot window (see updateWindow.ts),
+// keyed by the hour the dish stores.
+const UPDATE_WINDOW_COPY: Record<number, { label: TranslationKey; caption: TranslationKey }> = {
+  3: { label: "settings.updateOvernight", caption: "settings.updateOvernightCaption" },
+  9: { label: "settings.updateMorning", caption: "settings.updateMorningCaption" },
+  15: { label: "settings.updateAfternoon", caption: "settings.updateAfternoonCaption" },
+  21: { label: "settings.updateEvening", caption: "settings.updateEveningCaption" },
+};
 
 function SnowMeltOption({ mode }: { mode: SnowMeltMode }) {
   const { t } = useTranslation();
-  const labels: Record<SnowMeltMode, string> = {
-    AUTO: t("common.automatic"),
-    ALWAYS_ON: t("common.alwaysOn"),
-    ALWAYS_OFF: t("common.off"),
-  };
-  const descriptions: Record<SnowMeltMode, string> = {
-    AUTO: t("settings.snowAutoDesc"),
-    ALWAYS_ON: t("settings.snowAlwaysDesc"),
-    ALWAYS_OFF: t("settings.snowOffDesc"),
-  };
   return (
     <SelectPrimitive.Item
       value={mode}
@@ -68,11 +81,11 @@ function SnowMeltOption({ mode }: { mode: SnowMeltMode }) {
             </span>
           </TooltipTrigger>
           <TooltipContent side='left' className='max-w-56'>
-            {descriptions[mode]}
+            {t(SNOW_MELT_DESCRIPTION[mode])}
           </TooltipContent>
         </Tooltip>
       </span>
-      <SelectPrimitive.ItemText>{labels[mode]}</SelectPrimitive.ItemText>
+      <SelectPrimitive.ItemText>{t(SNOW_MELT_LABEL[mode])}</SelectPrimitive.ItemText>
     </SelectPrimitive.Item>
   );
 }
@@ -116,7 +129,7 @@ export function StarlinkSettingsTab({
           {settings.error instanceof AccountRequiredError ? (
             <AccountRequiredNotice />
           ) : (
-            settings.error.message
+            errorText(settings.error)
           )}
         </Callout>
       )}
@@ -132,7 +145,7 @@ export function StarlinkSettingsTab({
                 <SelectValue />
               </SelectTrigger>
               <SelectContent className={selectContentClass}>
-                {(["AUTO", "ALWAYS_ON", "ALWAYS_OFF"] as SnowMeltMode[]).map((mode) => (
+                {(Object.keys(SNOW_MELT_LABEL) as SnowMeltMode[]).map((mode) => (
                   <SnowMeltOption key={mode} mode={mode} />
                 ))}
               </SelectContent>
@@ -169,7 +182,9 @@ export function StarlinkSettingsTab({
           </SettingRow>
           {sleepEnabled && (
             <div className='flex items-center justify-end gap-2 pb-[8px]'>
-              <span className='mt-px block text-[12px] text-muted-foreground'>from</span>
+              <span className='mt-px block text-[12px] text-muted-foreground'>
+                {t("settings.sleepFrom")}
+              </span>
               <TimePicker
                 minutes={sleepStartLocal}
                 disabled={settings.saving}
@@ -180,7 +195,9 @@ export function StarlinkSettingsTab({
                   })
                 }
               />
-              <span className='mt-px block text-[12px] text-muted-foreground'>to</span>
+              <span className='mt-px block text-[12px] text-muted-foreground'>
+                {t("settings.sleepTo")}
+              </span>
               <TimePicker
                 minutes={wakeLocal}
                 disabled={settings.saving}
@@ -199,7 +216,7 @@ export function StarlinkSettingsTab({
               and words them "around 3 AM · Between 12 AM and 6 AM". */}
           <SettingRow
             title={t("settings.softwareUpdates")}
-            caption={`Update reboots happen ${updateWindow.range.toLowerCase()}`}
+            caption={t(UPDATE_WINDOW_COPY[updateWindow.hour].caption)}
           >
             <Select
               value={String(updateWindow.hour)}
@@ -216,14 +233,14 @@ export function StarlinkSettingsTab({
                     value={String(window.hour)}
                     className={selectItemClass}
                   >
-                    {window.label}
+                    {t(UPDATE_WINDOW_COPY[window.hour].label)}
                   </SelectItem>
                 ))}
               </SelectContent>
             </Select>
           </SettingRow>
 
-          <SettingRow title='Defer updates' caption='Hold firmware updates for up to 3 days'>
+          <SettingRow title={t("settings.deferUpdates")} caption={t("settings.deferUpdatesDesc")}>
             <Switch
               checked={Boolean(config.swupdateThreeDayDeferralEnabled)}
               disabled={settings.saving}
@@ -242,10 +259,10 @@ export function StarlinkSettingsTab({
               }}
             >
               {copyState === "copied"
-                ? "Copied ✓"
+                ? t("settings.copied")
                 : copyState === "failed"
-                  ? "Copy failed"
-                  : "Copy"}
+                  ? t("settings.copyFailed")
+                  : t("settings.copy")}
             </button>
           </SettingRow>
 
@@ -253,51 +270,49 @@ export function StarlinkSettingsTab({
           <DangerAction
             title={t("settings.resetObstruction")}
             caption={t("settings.resetObstructionDesc")}
-            buttonLabel='Reset'
-            confirmLabel='Yes, reset map'
+            buttonLabel={t("settings.reset")}
+            confirmLabel={t("settings.confirmResetMap")}
             onRun={async () => {
               await (await loadDish()).clearObstructionMap();
-              return "Obstruction map cleared — the survey restarts now.";
+              return t("settings.resetObstructionSent");
             }}
           />
           <DangerAction
             title={t("settings.rebootStarlink")}
             caption={t("settings.rebootStarlinkDesc")}
-            buttonLabel='Reboot'
-            slideLabel='Slide to reboot dish'
-            confirmLabel='Reboot dish'
+            buttonLabel={t("settings.reboot")}
+            slideLabel={t("settings.slideRebootDish")}
+            confirmLabel={t("settings.rebootDish")}
             onRun={async () => {
               await (await loadDish()).reboot();
-              return "Reboot command sent — the dish is restarting.";
+              return t("settings.rebootDishSent");
             }}
           />
           <DangerAction
             title={t("settings.factoryResetStarlink")}
             caption={t("settings.factoryResetStarlinkDesc")}
-            buttonLabel='Factory reset'
-            slideLabel='Slide to factory reset the dish'
-            confirmLabel='Factory reset dish'
-            warning='Only factory reset as a last resort or when Starlink recommends it. Frequent factory resets can cause permanent hardware failure.'
+            buttonLabel={t("settings.factoryReset")}
+            slideLabel={t("settings.slideFactoryResetDish")}
+            confirmLabel={t("settings.factoryResetDish")}
+            warning={t("settings.factoryResetDishWarning")}
             onRun={async () => {
               await (await loadDish()).factoryReset();
-              return "Factory reset sent — the dish is wiping and restarting.";
+              return t("settings.factoryResetDishSent");
             }}
           />
           {isMotorized && (
             <DangerAction
-              title={status?.stowRequested ? "Unstow dish" : "Stow dish"}
+              title={status?.stowRequested ? t("settings.unstowDish") : t("settings.stowDish")}
               caption={
-                status?.stowRequested
-                  ? "Unfold and reacquire satellites over a few minutes"
-                  : "Folds the dish flat and stops internet until unstowed"
+                status?.stowRequested ? t("settings.unstowDishDesc") : t("settings.stowDishDesc")
               }
-              buttonLabel={status?.stowRequested ? "Unstow" : "Stow"}
-              confirmLabel={status?.stowRequested ? "Yes, unstow" : "Yes, stow"}
+              buttonLabel={status?.stowRequested ? t("settings.unstow") : t("settings.stow")}
+              confirmLabel={
+                status?.stowRequested ? t("settings.confirmUnstow") : t("settings.confirmStow")
+              }
               onRun={async () => {
                 await (await loadDish()).stow(Boolean(status?.stowRequested));
-                return status?.stowRequested
-                  ? "Unstow sent — deploying."
-                  : "Stow sent — folding flat.";
+                return status?.stowRequested ? t("settings.unstowSent") : t("settings.stowSent");
               }}
             />
           )}

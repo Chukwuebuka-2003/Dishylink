@@ -112,11 +112,7 @@ export function RouterSettingsTab({
         <>
           <SectionLabel>{t("settings.networks")}</SectionLabel>
           {ssids.map(([ssid, bands]) => (
-            <SettingRow
-              key={ssid}
-              title={ssid}
-              caption='WPA2 · password managed in the Starlink app'
-            >
+            <SettingRow key={ssid} title={ssid} caption={t("settings.wpa2Caption")}>
               {[...new Set(bands)].map((band) => (
                 <Badge key={band}>{band}</Badge>
               ))}
@@ -130,10 +126,16 @@ export function RouterSettingsTab({
                 <SettingRow
                   key={nodeIndex}
                   title={node.displayName ?? t("settings.meshNode")}
-                  caption={node.hardwareVersion ? `hardware ${node.hardwareVersion}` : undefined}
+                  caption={
+                    node.hardwareVersion
+                      ? t("settings.meshHardware", { version: node.hardwareVersion })
+                      : undefined
+                  }
                 >
                   <Badge tone={node.auth !== "MESH_AUTH_TRUSTED" ? "critical" : "neutral"}>
-                    {node.auth === "MESH_AUTH_TRUSTED" ? "trusted" : (node.auth ?? "unknown")}
+                    {node.auth === "MESH_AUTH_TRUSTED"
+                      ? t("settings.meshTrusted")
+                      : (node.auth ?? t("common.unknown"))}
                   </Badge>
                 </SettingRow>
               ))}
@@ -143,7 +145,7 @@ export function RouterSettingsTab({
           {wifiConfig?.boot?.evenSideSoftwareVersion && (
             <SettingRow
               title={t("settings.routerFirmware")}
-              caption={`country ${wifiConfig.countryCode ?? "—"}`}
+              caption={t("settings.routerCountry", { country: wifiConfig.countryCode ?? "—" })}
             >
               <span className='font-mono text-[12px] text-muted-foreground tabular-nums'>
                 {wifiConfig.boot.evenSideSoftwareVersion}
@@ -157,14 +159,14 @@ export function RouterSettingsTab({
       <DangerAction
         title={t("settings.rebootRouter")}
         caption={answering ? t("settings.rebootRouterDesc") : t("settings.routerUnavailable")}
-        buttonLabel='Reboot'
-        slideLabel='Slide to reboot router'
-        confirmLabel='Reboot router'
+        buttonLabel={t("settings.reboot")}
+        slideLabel={t("settings.slideRebootRouter")}
+        confirmLabel={t("settings.rebootRouter")}
         disabled={!answering}
         onRun={async () => {
           const routerClient = await DishClient.load("router");
           await routerClient.reboot();
-          return "Reboot sent — the router is restarting.";
+          return t("settings.rebootRouterSent");
         }}
       />
       <DangerAction
@@ -172,22 +174,22 @@ export function RouterSettingsTab({
         caption={
           answering || accountConnected
             ? t("settings.factoryResetRouterDesc")
-            : "Needs the router on this network, or your Starlink account"
+            : t("settings.factoryResetRouterNeeds")
         }
-        buttonLabel='Factory reset'
-        slideLabel='Slide to factory reset the router'
-        confirmLabel='Factory reset router'
-        warning='Factory reset will clear your WiFi network name, password, and other settings. This will interrupt your service until you set it up again.'
+        buttonLabel={t("settings.factoryReset")}
+        slideLabel={t("settings.slideFactoryResetRouter")}
+        confirmLabel={t("settings.factoryResetRouter")}
+        warning={t("settings.factoryResetRouterWarning")}
         disabled={!answering && !accountConnected}
         onRun={async () => {
           // A bypassed router is off the LAN, which is exactly when a reset is
           // wanted: the account reaches it there and nothing local does.
           if (!answering) {
             await applyRouterConfigUpdate({ kind: "factoryReset" });
-            return "Factory reset sent through your Starlink account — the router is wiping and restarting.";
+            return t("settings.factoryResetRouterSentViaAccount");
           }
           await (await DishClient.load("router")).factoryReset();
-          return "Factory reset sent — the router is wiping and restarting.";
+          return t("settings.factoryResetRouterSent");
         }}
       />
       <CollapsibleSection title={t("settings.advanced")}>

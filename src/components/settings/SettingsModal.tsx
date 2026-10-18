@@ -113,7 +113,7 @@ export function SettingsModal({
         <div className='px-5 pt-2 pb-1.5'>
           <SegmentedControl
             variant='glider'
-            label='Settings section'
+            label={t("settings.section")}
             value={tab}
             onChange={setTab}
             options={[

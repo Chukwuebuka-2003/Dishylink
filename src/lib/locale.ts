@@ -3,7 +3,14 @@
 // initialized from browser settings if not explicitly chosen, and subscribed
 // across UI components.
 
-export type SupportedLocale = "en" | "es" | "fr" | "de" | "pt";
+import {
+  DEFAULT_LOCALE,
+  isSupportedLocale,
+  localeFromLanguageTags,
+  type SupportedLocale,
+} from "@core/i18n/locale";
+
+export { DEFAULT_LOCALE, isSupportedLocale, type SupportedLocale };
 
 export interface LocaleOption {
   code: SupportedLocale;
@@ -19,28 +26,25 @@ export const SUPPORTED_LOCALES: readonly LocaleOption[] = [
   { code: "pt", label: "Portuguese", nativeLabel: "Português" },
 ] as const;
 
-export const DEFAULT_LOCALE: SupportedLocale = "en";
 export const LOCALE_STORAGE_KEY = "dishylink-locale";
 
 const listeners = new Set<() => void>();
-
-export function isSupportedLocale(locale: string): locale is SupportedLocale {
-  return SUPPORTED_LOCALES.some((option) => option.code === locale);
-}
 
 function publishLocaleChange(): void {
   for (const listener of listeners) listener();
 }
 
+// The browser's languages in preference order, so a second choice we do have
+// beats falling to English when the first is one we don't.
 function detectBrowserLocale(): SupportedLocale {
-  if (typeof navigator === "undefined" || !navigator.language) return DEFAULT_LOCALE;
-  const lang = navigator.language.slice(0, 2).toLowerCase();
-  return isSupportedLocale(lang) ? lang : DEFAULT_LOCALE;
+  if (typeof navigator === "undefined") return DEFAULT_LOCALE;
+  const preferred = navigator.languages?.length ? navigator.languages : [navigator.language];
+  return localeFromLanguageTags(preferred);
 }
 
 export function readLocale(): SupportedLocale {
   if (typeof localStorage === "undefined") return DEFAULT_LOCALE;
-  const stored = localStorage.getItem(LOCALE_STORAGE_KEY) as SupportedLocale | null;
+  const stored = localStorage.getItem(LOCALE_STORAGE_KEY);
   if (stored && isSupportedLocale(stored)) {
     return stored;
   }
@@ -67,4 +71,24 @@ if (typeof window !== "undefined") {
   window.addEventListener("storage", (event) => {
     if (event.key === LOCALE_STORAGE_KEY) publishLocaleChange();
   });
+}
+
+/** A host process that words its own notifications and menus — desktop main,
+ *  the extension worker — and so needs to be told the language this window
+ *  settled on. Absent in a plain browser tab, where there is no such process. */
+export interface LocaleHost {
+  write: (locale: SupportedLocale) => void;
+}
+
+let host: LocaleHost | null = null;
+
+/** Called once by a host entry point. The current language is pushed at once,
+ *  so a host bound after i18n initialised still learns a detected locale. */
+export function setLocaleHost(binding: LocaleHost): void {
+  host = binding;
+  binding.write(readLocale());
+}
+
+export function syncLocaleToHost(locale: string): void {
+  if (host && isSupportedLocale(locale)) host.write(locale);
 }
