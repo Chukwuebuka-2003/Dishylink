@@ -48,6 +48,14 @@ export interface AlertSpec {
   notifyClear?: boolean;
 }
 
+/** The dish's heat flags, which the event log and the outage reports read as
+ *  thermal episodes. */
+export const THERMAL_ALERT_KEYS: readonly string[] = [
+  "thermalThrottle",
+  "thermalShutdown",
+  "powerSupplyThermalThrottle",
+];
+
 /** Alerts on the dish's get_status. Order is roughly by how much it matters. */
 export const DISH_ALERTS: AlertSpec[] = [
   {

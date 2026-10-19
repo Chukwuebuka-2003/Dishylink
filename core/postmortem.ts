@@ -1,188 +1,196 @@
 // Outage post-mortem synthesis.
 //
-// Everything the report states is already recorded — the recorder never asks the
-// devices anything new. The moment a link outage ends (the recorder's own
-// starlinkOutage / dishUnreachable episode clears), this folds the recordings
-// around it into one self-contained summary: when it happened and for how long,
-// what the dish's own event log says caused it, the latency/throughput of the
-// five minutes before the drop, whether snow melt was running, and any thermal
-// state touching the outage.
+// When one of the recorder's own link-outage episodes ends, this folds what was
+// already recorded around it into one self-contained report: when it happened
+// and for how long, which dish event explains it, what the link was doing in
+// the five minutes before the drop, whether the heater was running, and any
+// thermal episode touching it. Nothing here asks a device anything: every
+// figure comes from recordings the host already holds.
 //
-// Pure and IO-free, so the recorder and the UI agree on what an outage means:
-// the recorder generates the report and the dashboard renders the same shape
-// the API serves.
+// Pure and IO-free so the desktop recorder and the extension's worker produce
+// the same report from the same inputs, and the dashboard can match a report
+// to the event row that owns it with the same rule in every host.
 
-import { canonicalCause, type OutageEvent, type TelemetrySample } from "./telemetry";
+import {
+  canonicalCause,
+  outageEventKind,
+  type OutageEvent,
+  type TelemetrySample,
+} from "./telemetry";
+import { THERMAL_ALERT_KEYS } from "./alertDefinitions";
 import type { MinuteBucket } from "./energyBuckets";
 
 /** How far back before the drop the report looks for "what the link was doing". */
 export const BEFORE_WINDOW_MS = 5 * 60_000;
 
-/** The names of the recorder's own episodes that mean a link outage. The dish's
- *  event-log entries (eventStore) describe what happened; these episodes are
- *  what the recorder can time precisely, because it opens and closes them. */
+/** The recorder stamps an episode when its poll noticed the outage and the dish
+ *  stamps its event when the link went; the two clocks also differ by up to a
+ *  poll interval. A dish event or an event row within this much of the
+ *  recorder's span still describes the same outage. */
+export const MATCH_TOLERANCE_MS = 30_000;
+
+/** The dish's heater flag: the one thing the dish asserts about snow melt on
+ *  the LAN. `snowMeltActive` is not in the protoset and never decodes. */
+export const HEATER_ALERT_KEY = "isHeating";
+
+/** The recorder's episodes that mean a link outage: eight straight seconds of
+ *  dropped pings, or a dish that stopped answering. */
 export type OutageSourceKey = "starlinkOutage" | "dishUnreachable";
 
+export function isOutageSourceKey(key: string): key is OutageSourceKey {
+  return key === "starlinkOutage" || key === "dishUnreachable";
+}
+
 export interface BeforeDropStats {
-  /** The five minutes of recording before the link dropped, [start, drop). */
+  /** The five minutes before the link dropped, [start, drop). */
   windowStartMs: number;
   windowEndMs: number;
-  /** Seconds of the window actually covered by a recording — the honesty number
-   *  behind every average. 300 is a fully covered window at 1 Hz; the
-   *  minute-row fallback counts whole minutes only, so its fully covered window
-   *  is 240–300 s depending on where in the minute the drop landed. */
+  /** Seconds of the window a recording actually covers: 300 is a full window
+   *  at 1 Hz; the whole-minute fallback counts complete minutes only. */
   coverageSeconds: number;
-  /** Mean dish → PoP ping latency (ms). Null once the outage is older than the
-   *  6 h sample window: the per-minute rows that reach back further carry no
-   *  latency. */
+  /** Mean dish-to-PoP latency. Null once the outage has aged past the sample
+   *  window, since the per-minute rows carry no latency. */
   latencyAvgMs: number | null;
   downlinkAvgBps: number | null;
   uplinkAvgBps: number | null;
   /** Mean share of pings dropped across the covered seconds (0–1). */
   dropRateAvg: number | null;
-  /** Two-state on purpose: get_status omits a false snowMeltActive field, so
-   *  "active" is the only state the dish ever asserts outright, and the
-   *  recorder's only producer normalizes everything else to an absent field. A
-   *  window with no assertion — or with a recorded false, which the current
-   *  producer chain cannot even emit — reads "unknown", never "off". */
-  snowMelt: "active" | "unknown";
-  /** Which recording fed the numbers: the 1 s sample window when it reaches
-   *  back to the pre-drop minutes, else the per-minute energy rows. */
+  /** Whether the dish's heater ran at any point in the window, from the
+   *  recorder's own isHeating episodes. */
+  heaterActive: boolean;
+  /** Which recording fed the numbers. */
   source: "samples" | "minute-buckets";
 }
 
-/** One thermal episode touching the outage, from the thermal log. */
-export interface ReportThermalEpisode {
+/** One dish alert episode, as the alert log records it. */
+export interface ReportAlertEpisode {
   alertKey: string;
   startMs: number;
-  /** Null while still running — the report freezes the episode as it was. */
+  /** Null while still running at generation time. */
   endMs: number | null;
 }
 
-/** The auto-generated summary of one ended outage. This JSON is the shareable
- *  artifact: it is self-contained (every number it states was frozen at
- *  generation time) and rides the `/api/outages/reports` list newest-first. */
+/** The frozen summary of one ended outage. */
 export interface OutageReport {
-  /** Identity of the closed episode that ended the outage —
-   *  `system:starlinkOutage:<startMs>` — keyed so a report is never generated
-   *  twice for the same outage. */
+  /** `system:<source>:<episode start>`: one report per recorder episode. */
   id: string;
-  /** Which recorder episode ended: sample-based (eight consecutive dropped
-   *  seconds) or dish-unreachable. */
   source: OutageSourceKey;
+  /** When the link dropped: the first dropped sample of the run that raised a
+   *  starlinkOutage episode, which the recorder only notices eight seconds in. */
   startMs: number;
   endMs: number;
   durationMs: number;
-  /** Canonical cause token from the dish's own event log (see canonicalCause),
-   *  when an event overlaps the outage; null when the dish never reported one. */
+  /** Canonical cause from the dish's own event log, or null when the dish
+   *  logged nothing for this outage (it never does while unreachable). */
   cause: string | null;
   beforeDrop: BeforeDropStats;
-  /** Thermal episodes touching [start − 5 min, end]: a shutdown that began
-   *  before the drop — the classic staged failure — still shows. */
-  thermal: ReportThermalEpisode[];
+  /** Thermal episodes touching [start − 5 min, end]. */
+  thermal: ReportAlertEpisode[];
   generatedAtMs: number;
 }
 
 export interface OutageReportInput {
   source: OutageSourceKey;
+  /** The recorder episode's own start stamp. */
   startMs: number;
   endMs: number;
-  /** The dish's event-log entries held by the event store, for the cause. */
   dishEvents: OutageEvent[];
-  /** The recorder's 1 s sample window (covers ~6 h; silence inside it occupies
-   *  room, so a long outage leaves the pre-drop seconds only while recent). */
+  /** The host's 1 s sample window, oldest first. */
   samples: TelemetrySample[];
-  /** Per-minute energy rows for the window — the fallback for outages that have
-   *  aged past the sample window. Minutes are the whole-minute span their
-   *  bucket covers; the caller hands over the ones overlapping the window, and
-   *  the drop-minute bucket is excluded here regardless of how it was asked
-   *  for. */
+  /** Per-minute rows overlapping the window, the fallback for an outage that
+   *  has aged past the sample window. */
   minuteBuckets: MinuteBucket[];
-  /** The thermal log, whole — overlap with the outage is judged here. */
-  thermal: ReportThermalEpisode[];
+  /** The dish's alert episodes within the alert log's window. */
+  dishAlerts: ReportAlertEpisode[];
   generatedAtMs: number;
 }
 
-/** Below this many sample-seconds covering the window, the sample window is no
- *  longer the honest source: it usually means the window's start has aged out,
- *  and the per-minute rows describe it better. Whole-minute rows count only the
- *  minutes fully inside the window — the partial minute the window starts in
- *  and the drop-minute bucket are both left out — so a fully recorded window is
- *  300 s only when the drop lands on a minute boundary; the usual drop reads
- *  240 s (four whole minutes). */
+/** Below this much sample coverage the window has mostly aged out of the
+ *  sample store and the per-minute rows describe it better. */
 const MIN_SAMPLE_COVERAGE_SECONDS = 60;
 
-/** The cause the dish's event log assigns, or null when none of its events
- *  overlaps the outage. The recorder detects the drop up to a few seconds after
- *  the dish's own start stamp, so the match tolerates that, and ties go to the
- *  event whose start is nearest the recorder's. */
-function causeOf(dishEvents: OutageEvent[], startMs: number, endMs: number): string | null {
-  const overlapping = dishEvents.filter(
-    (event) =>
-      // Interval overlap, with the recorder's start tolerance and the same
-      // five-minute lookback the thermal check uses.
-      Math.max(event.startMs, startMs - BEFORE_WINDOW_MS) <=
-      Math.min(event.startMs + Math.max(event.durationMs, 0), endMs),
-  );
-  if (overlapping.length === 0) return null;
-  return canonicalCause(
-    overlapping.sort((a, b) => Math.abs(a.startMs - startMs) - Math.abs(b.startMs - startMs))[0]
-      .cause,
-  );
+function overlaps(
+  aStartMs: number,
+  aEndMs: number,
+  bStartMs: number,
+  bEndMs: number,
+  toleranceMs = 0,
+): boolean {
+  return aStartMs - toleranceMs <= bEndMs && bStartMs - toleranceMs <= aEndMs;
 }
 
-/** Window verdict: any asserted active wins; everything else — silence, or a
- *  recorded false, which today's producer chain cannot even emit — reads
- *  "unknown" (see BeforeDropStats.snowMelt). Claiming "off" would assert
- *  something the reply never said. */
-function snowMeltOf(samples: TelemetrySample[]): "active" | "unknown" {
-  for (const sample of samples) {
-    if (sample.snowMeltActive === true) return "active";
+/** The recorder notices a ping-drop outage eight dropped seconds in. The drop
+ *  itself is where the contiguous run of fully dropped samples ending at the
+ *  episode's stamp begins. A dish-unreachable episode keeps its stamp: there
+ *  are no samples to date it from. */
+export function outageStartMs(
+  source: OutageSourceKey,
+  episodeStartMs: number,
+  samples: readonly TelemetrySample[],
+): number {
+  if (source !== "starlinkOutage") return episodeStartMs;
+  let startMs = episodeStartMs;
+  for (let index = samples.length - 1; index >= 0; index -= 1) {
+    const sample = samples[index];
+    if (sample.timestampMs > episodeStartMs) continue;
+    if (sample.dropRate < 1) break;
+    startMs = sample.timestampMs;
   }
-  return "unknown";
+  return startMs;
+}
+
+function causeOf(dishEvents: OutageEvent[], startMs: number, endMs: number): string | null {
+  const matching = dishEvents.filter((event) =>
+    overlaps(
+      event.startMs,
+      event.startMs + Math.max(event.durationMs, 0),
+      startMs,
+      endMs,
+      MATCH_TOLERANCE_MS,
+    ),
+  );
+  if (matching.length === 0) return null;
+  matching.sort((a, b) => Math.abs(a.startMs - startMs) - Math.abs(b.startMs - startMs));
+  return canonicalCause(matching[0].cause);
 }
 
 function mean(values: number[]): number | null {
   return values.length > 0 ? values.reduce((sum, value) => sum + value, 0) / values.length : null;
 }
 
-/** The five minutes before the drop from the 1 s window: averages over the
- *  seconds it actually covered. Null fields mean the field exists on the
- *  samples but every reading for the window was null, not "not recorded". */
-function beforeDropFromSamples(samples: TelemetrySample[], startMs: number): BeforeDropStats {
+function beforeDropFromSamples(
+  samples: TelemetrySample[],
+  startMs: number,
+  heaterActive: boolean,
+): BeforeDropStats {
   const windowStartMs = startMs - BEFORE_WINDOW_MS;
   const inWindow = samples.filter(
     (sample) => sample.timestampMs >= windowStartMs && sample.timestampMs < startMs,
-  );
-  const latencies = inWindow.flatMap((sample) =>
-    sample.latencyMs === null ? [] : [sample.latencyMs],
   );
   return {
     windowStartMs,
     windowEndMs: startMs,
     coverageSeconds: inWindow.length,
-    latencyAvgMs: mean(latencies),
+    latencyAvgMs: mean(
+      inWindow.flatMap((sample) => (sample.latencyMs === null ? [] : [sample.latencyMs])),
+    ),
     downlinkAvgBps: mean(inWindow.map((sample) => sample.downlinkBps)),
     uplinkAvgBps: mean(inWindow.map((sample) => sample.uplinkBps)),
     dropRateAvg: mean(inWindow.map((sample) => sample.dropRate)),
-    snowMelt: snowMeltOf(inWindow),
+    heaterActive,
     source: "samples",
   };
 }
 
-/** The fallback for outages that have aged past the sample window: the
- *  per-minute rows sum the same downlink/uplink bits (one row per wall-clock
- *  minute) with the seconds they covered. Latency and snow melt are not in
- *  those rows, so they stay null/unknown rather than being invented. */
-function beforeDropFromBuckets(buckets: MinuteBucket[], startMs: number): BeforeDropStats {
+/** The whole-minute bucket the drop second falls in mixes pre-drop and dropped
+ *  seconds, so only buckets whose minute lies entirely before it count. */
+function beforeDropFromBuckets(
+  buckets: MinuteBucket[],
+  startMs: number,
+  heaterActive: boolean,
+): BeforeDropStats {
   const windowStartMs = startMs - BEFORE_WINDOW_MS;
-  // Bucket minutes are whole-minute epoch seconds; the window bounds are ms.
   const windowStartSec = windowStartMs / 1000;
-  // The whole-minute bucket the drop second falls in is excluded no matter how
-  // the caller asked: it mixes pre-drop and dropped seconds, and its start can
-  // precede the drop stamp (only a drop exactly on the minute boundary makes
-  // the naive `bucket.minute < startMs / 1000` cut). A bucket whose minute
-  // start lies inside the window is then a whole minute fully inside it.
   const dropMinuteSec = Math.floor(startMs / 60_000) * 60;
   const inWindow = buckets.filter(
     (bucket) => bucket.minute >= windowStartSec && bucket.minute < dropMinuteSec,
@@ -198,38 +206,42 @@ function beforeDropFromBuckets(buckets: MinuteBucket[], startMs: number): Before
     downlinkAvgBps: coverageSeconds > 0 ? downlinkBits / coverageSeconds : null,
     uplinkAvgBps: coverageSeconds > 0 ? uplinkBits / coverageSeconds : null,
     dropRateAvg: null,
-    snowMelt: "unknown",
+    heaterActive,
     source: "minute-buckets",
   };
 }
 
-/** Fold the recordings around one ended outage into the report. Pure — the
- *  caller supplies everything; this decides what the outage means. */
 export function buildOutageReport(input: OutageReportInput): OutageReport {
-  const { source, startMs, endMs, dishEvents, samples, minuteBuckets, thermal, generatedAtMs } =
-    input;
+  const { source, endMs, dishEvents, samples, minuteBuckets, dishAlerts, generatedAtMs } = input;
+  const startMs = outageStartMs(source, input.startMs, samples);
   const windowStartMs = startMs - BEFORE_WINDOW_MS;
+  const episodeEnd = (episode: ReportAlertEpisode) => episode.endMs ?? generatedAtMs;
+
+  const heaterActive = dishAlerts.some(
+    (episode) =>
+      episode.alertKey === HEATER_ALERT_KEY &&
+      overlaps(episode.startMs, episodeEnd(episode), windowStartMs, startMs),
+  );
   const sampleCoverage = samples.filter(
     (sample) => sample.timestampMs >= windowStartMs && sample.timestampMs < startMs,
   ).length;
 
-  const beforeDrop =
-    sampleCoverage >= MIN_SAMPLE_COVERAGE_SECONDS
-      ? beforeDropFromSamples(samples, startMs)
-      : beforeDropFromBuckets(minuteBuckets, startMs);
-
   return {
-    id: `system:${source}:${startMs}`,
+    id: `system:${source}:${input.startMs}`,
     source,
     startMs,
     endMs,
     durationMs: endMs - startMs,
     cause: causeOf(dishEvents, startMs, endMs),
-    beforeDrop,
-    thermal: thermal
+    beforeDrop:
+      sampleCoverage >= MIN_SAMPLE_COVERAGE_SECONDS
+        ? beforeDropFromSamples(samples, startMs, heaterActive)
+        : beforeDropFromBuckets(minuteBuckets, startMs, heaterActive),
+    thermal: dishAlerts
       .filter(
         (episode) =>
-          episode.startMs <= endMs && (episode.endMs === null || episode.endMs >= windowStartMs),
+          THERMAL_ALERT_KEYS.includes(episode.alertKey) &&
+          overlaps(episode.startMs, episodeEnd(episode), windowStartMs, endMs),
       )
       .map(({ alertKey, startMs: episodeStartMs, endMs: episodeEndMs }) => ({
         alertKey,
@@ -238,4 +250,51 @@ export function buildOutageReport(input: OutageReportInput): OutageReport {
       })),
     generatedAtMs,
   };
+}
+
+export interface ReportAssignment {
+  /** The one report each owning event carries. */
+  byEvent: Map<OutageEvent, OutageReport>;
+  /** Reports no event owns. A dish that stopped answering logged no event for
+   *  the time it was away, so its report needs a row of its own. */
+  unclaimed: OutageReport[];
+}
+
+/**
+ * Give each report to exactly one event row. Only an outage-kind event can own
+ * one: a band switch, a router ping drop or a thermal row that happens to fall
+ * inside an outage did not cause it, and showing it the outage's figures would
+ * present them as its own. Among the outage events overlapping a report, the
+ * one starting nearest the drop owns it; an event already owning a nearer
+ * report is not offered a second.
+ */
+export function assignReports(
+  reports: readonly OutageReport[],
+  events: readonly OutageEvent[],
+): ReportAssignment {
+  const candidates = reports.flatMap((report) =>
+    events
+      .filter(
+        (event) =>
+          outageEventKind(event.cause) === "outage" &&
+          overlaps(
+            report.startMs,
+            report.endMs,
+            event.startMs,
+            event.startMs + Math.max(event.durationMs, 0),
+            MATCH_TOLERANCE_MS,
+          ),
+      )
+      .map((event) => ({ report, event, distance: Math.abs(report.startMs - event.startMs) })),
+  );
+  candidates.sort((a, b) => a.distance - b.distance);
+
+  const byEvent = new Map<OutageEvent, OutageReport>();
+  const assigned = new Set<string>();
+  for (const { report, event } of candidates) {
+    if (assigned.has(report.id) || byEvent.has(event)) continue;
+    byEvent.set(event, report);
+    assigned.add(report.id);
+  }
+  return { byEvent, unclaimed: reports.filter((report) => !assigned.has(report.id)) };
 }

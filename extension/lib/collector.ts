@@ -28,7 +28,14 @@ import { loadSelfDeviceClientId } from "./selfDevice";
 import { runMeters } from "./meterEnforcement";
 import type { MeterHost } from "./meterHost";
 import { usageKey } from "@core/clientUsage";
-import { applyDrain, IndexedDbHistory, type ClientMinuteRow, type HistoryStore } from "./history";
+import {
+  applyDrain,
+  IndexedDbHistory,
+  type AlertEpisode,
+  type ClientMinuteRow,
+  type HistoryStore,
+} from "./history";
+import { recordOutageReports } from "./outageReports";
 import { packObstructionCells } from "./obstruction";
 import { dishHandleUrl, routerHandleUrl } from "./endpoints";
 
@@ -89,12 +96,12 @@ async function recordAlerts(
   store: HistoryStore,
   observation: AlertObservation,
   nowMs: number,
-): Promise<{ transitions: AlertTransition[]; active: AlertState[] }> {
+): Promise<{ transitions: AlertTransition[]; active: AlertState[]; open: AlertEpisode[] }> {
   const open = (await store.readAlerts(nowMs)).filter((episode) => episode.endMs === null);
   const engine = new AlertEngine(open.map((e) => ({ source: e.source, key: e.key })));
   const transitions = engine.update(observation);
   if (transitions.length > 0) await store.applyAlertTransitions(transitions, nowMs);
-  return { transitions, active: engine.activeAlerts() };
+  return { transitions, active: engine.activeAlerts(), open };
 }
 
 export async function drainOnce(host: MeterHost): Promise<DrainResult> {
@@ -165,7 +172,8 @@ export async function drainOnce(host: MeterHost): Promise<DrainResult> {
     ...(starlinkOutage === null ? {} : { system: { alerts: { starlinkOutage }, atMs: now } }),
   };
   await drainObstruction(store, client).catch(() => {});
-  const { transitions, active } = await recordAlerts(store, observation, now);
+  const { transitions, active, open } = await recordAlerts(store, observation, now);
+  await recordOutageReports(store, open, transitions, now).catch(() => {});
   // Run on the clock, not on the router's reply: a cycle rolls whether or not the
   // router answered, and a rule whose device is away still has to release the
   // pause it applied when the cycle turns over.

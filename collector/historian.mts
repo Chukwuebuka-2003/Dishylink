@@ -59,7 +59,8 @@ import { summarizeLatency } from "../core/latencySummary.ts";
 import { ThermalStore } from "./thermalStore.mts";
 import { EventStore } from "./eventStore.mts";
 import { PostmortemStore } from "./postmortemStore.mts";
-import { buildOutageReport, BEFORE_WINDOW_MS } from "../core/postmortem.ts";
+import { buildOutageReport, BEFORE_WINDOW_MS, isOutageSourceKey } from "../core/postmortem.ts";
+import { THERMAL_ALERT_KEYS } from "../core/alertDefinitions.ts";
 import { ClientStore, type ClientReading } from "./clientStore.mts";
 import { ClientWindow } from "./clientWindow.mts";
 import { resolveRows, foldMinuteCollisions } from "../core/clientHistory.ts";
@@ -187,7 +188,6 @@ const routerOrigins = createRouterOrigins(
  * firmware answers with Unimplemented — so these booleans are the whole signal,
  * and they only exist while they are set. Nobody records them but us.
  */
-const THERMAL_ALERT_KEYS = ["thermalThrottle", "thermalShutdown", "powerSupplyThermalThrottle"];
 const SAMPLE_WINDOW_MS = 6 * 3_600_000;
 const SNAPSHOT_EVERY_MS = 60_000;
 /** A debugging aid, not a store — nothing should ever need more than the most
@@ -319,7 +319,6 @@ async function getStatusAlerts(): Promise<{
   alerts: Record<string, boolean>;
   ethSpeedMbps?: number;
   routerPresence: RouterPresence;
-  snowMeltActive: boolean | null;
 }> {
   const json = (await deviceCall(DISH_URL, GET_STATUS_FIELD)) as {
     dishGetStatus?: DishStatusJson;
@@ -331,9 +330,6 @@ async function getStatusAlerts(): Promise<{
     // needs the negotiated speed to tell a real dead link from a latched flag.
     ethSpeedMbps: status?.ethSpeedMbps,
     routerPresence: routerPresence(status),
-    // `=== true` is the check (see DishStatusJson.snowMeltActive): toJson omits
-    // a false field, so absence is not recorded as "off".
-    snowMeltActive: status?.snowMeltActive === true ? true : null,
   };
 }
 
@@ -378,10 +374,6 @@ async function getRouterStatus(): Promise<{
  */
 let latestRouterLatencyMs: number | null = null;
 let latestRouterPingSuccessPercent: number | null = null;
-// Whether the dish's snow-melt heater was running, read from the same get_status
-// reply getStatusAlerts decodes each cycle. Null when the reply said nothing —
-// proto3 JSON omits a false field, so this is "not known active", never "off".
-let latestSnowMeltActive: boolean | null = null;
 
 /**
  * Wi-Fi radio temperatures from the router. Only `temp2` is ever populated —
@@ -956,7 +948,7 @@ const alertEngine = new AlertEngine(
  * offline reach the user with no window open, which is the entire point of
  * running a recorder rather than a dashboard.
  */
-export const alertListeners = new Set<(transitions: AlertTransition[]) => void>();
+const alertListeners = new Set<(transitions: AlertTransition[]) => void>();
 
 export function onAlertTransitions(listener: (transitions: AlertTransition[]) => void): () => void {
   alertListeners.add(listener);
@@ -1060,36 +1052,31 @@ export function recordAlertTransitions(transitions: AlertTransition[]): void {
       if (kind === "fired") thermalStore.open(key, atMs);
       else thermalStore.close(key, atMs);
     }
-    // The post-mortem: when a link outage ends, freeze what the recording
-    // knows about it now — the 1 s sample window that answers "the five
-    // minutes before the drop" ages out within hours, so the report is
-    // generated at the close, not on demand. Only these two keys are a link
-    // outage; thermal episodes ride along in the report but never trigger one.
-    if (
-      kind === "cleared" &&
-      source === "system" &&
-      (key === "starlinkOutage" || key === "dishUnreachable")
-    ) {
-      if (closedEpisode) {
-        // The per-minute fallback rows for the same five-minute window: the
-        // whole-minute bucket that covers the drop second is left out, since
-        // it mixes pre-drop and dropped seconds.
-        const beforeStartSec = Math.floor((closedEpisode.startMs - BEFORE_WINDOW_MS) / 60_000) * 60;
-        const beforeEndSec = Math.floor(closedEpisode.startMs / 60_000) * 60;
-        const added = postmortemStore.add(
-          buildOutageReport({
-            source: key,
-            startMs: closedEpisode.startMs,
-            endMs: atMs,
-            generatedAtMs: Date.now(),
-            dishEvents: eventStore.all(),
-            samples: latestSamples,
-            minuteBuckets: store.readRange(beforeStartSec, beforeEndSec),
-            thermal: thermalStore.all(),
-          }),
-        );
-        if (added) console.log(`[historian] post-mortem report generated for ${source}:${key}`);
-      }
+    // The 1 s samples that answer "the five minutes before the drop" age out
+    // within hours, so the report is written the moment the outage ends.
+    if (closedEpisode && source === "system" && isOutageSourceKey(key)) {
+      const beforeStartSec = Math.floor((closedEpisode.startMs - BEFORE_WINDOW_MS) / 60_000) * 60;
+      const beforeEndSec = Math.floor(closedEpisode.startMs / 60_000) * 60;
+      const added = postmortemStore.add(
+        buildOutageReport({
+          source: key,
+          startMs: closedEpisode.startMs,
+          endMs: atMs,
+          generatedAtMs: Date.now(),
+          dishEvents: eventStore.all(),
+          samples: latestSamples,
+          minuteBuckets: store.readRange(beforeStartSec, beforeEndSec),
+          dishAlerts: alertStore
+            .all()
+            .filter((episode) => episode.source === "dish")
+            .map((episode) => ({
+              alertKey: episode.key,
+              startMs: episode.startMs,
+              endMs: episode.endMs,
+            })),
+        }),
+      );
+      if (added) console.log(`[historian] outage report written for ${key}`);
     }
   }
   for (const listener of alertListeners) listener(transitions);
@@ -1159,9 +1146,6 @@ function compactSample(sample: TelemetrySample): TelemetrySample {
     routerPingSuccessPercent: Number.isFinite(sample.routerPingSuccessPercent)
       ? Math.round(sample.routerPingSuccessPercent! * 100) / 100
       : null,
-    // A snapshot written before the field existed restores it as undefined,
-    // which must not come back as anything but null.
-    snowMeltActive: sample.snowMeltActive === true ? true : null,
   };
 }
 
@@ -1255,7 +1239,6 @@ async function pollAlerts(): Promise<void> {
   const observation: AlertObservation = {};
   try {
     const dishStatus = await getStatusAlerts();
-    latestSnowMeltActive = dishStatus.snowMeltActive;
     observation.dish = {
       alerts: dishStatus.alerts,
       ethSpeedMbps: dishStatus.ethSpeedMbps,
@@ -1268,7 +1251,6 @@ async function pollAlerts(): Promise<void> {
     // not a cleared alert — and raises the unreachability itself, so it survives
     // in history instead of only being a console warning.
     observation.dish = { alerts: null, atMs: Date.now() };
-    latestSnowMeltActive = null;
   }
   try {
     // One status reply, two consumers: the alert set, and the ping the sample
@@ -1550,7 +1532,6 @@ async function poll(): Promise<void> {
     {
       latencyMs: latestRouterLatencyMs,
       pingSuccessPercent: latestRouterPingSuccessPercent,
-      snowMeltActive: latestSnowMeltActive,
     },
     window,
   );

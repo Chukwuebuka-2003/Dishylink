@@ -41,7 +41,7 @@ function report(endMs: number, overrides: Partial<OutageReport> = {}): OutageRep
       downlinkAvgBps: 100_000_000,
       uplinkAvgBps: 10_000_000,
       dropRateAvg: 0,
-      snowMelt: "unknown",
+      heaterActive: false,
       source: "samples",
     },
     thermal: [],

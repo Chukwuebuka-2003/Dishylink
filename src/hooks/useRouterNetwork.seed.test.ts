@@ -147,7 +147,6 @@ describe("appendClientSamples", () => {
             powerW: 0,
             routerLatencyMs: null,
             routerPingSuccessPercent: null,
-            snowMeltActive: null,
           },
         ],
       ],

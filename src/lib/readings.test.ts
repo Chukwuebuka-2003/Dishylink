@@ -20,7 +20,6 @@ function readings(endMs: number, count: number, value: number): TelemetrySample[
     powerW: value,
     routerLatencyMs: null,
     routerPingSuccessPercent: null,
-    snowMeltActive: null,
   }));
 }
 

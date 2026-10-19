@@ -1215,6 +1215,32 @@
       }
     }
   },
+  "eventDetail": {
+    "title": "Détails de l'événement",
+    "kind": { "outage": "Panne", "degraded": "Dégradé", "info": "Info" },
+    "span": "{{start}} à {{end}}",
+    "noReport": "L'enregistreur d'historique n'a pas chronométré cet événement, il n'y a donc aucune mesure.",
+    "beforeDrop": "Cinq minutes avant la panne",
+    "latency": "Latence",
+    "downlink": "Descendant",
+    "uplink": "Montant",
+    "packetLoss": "Perte de paquets",
+    "heater": "Chauffage",
+    "heaterOn": "En marche",
+    "heaterOff": "Éteint",
+    "notRecorded": "non enregistré",
+    "coverage": "{{seconds}} s de la fenêtre enregistrées",
+    "thermal": "Thermique",
+    "thermalNone": "Aucun",
+    "stillRunning": "toujours en cours",
+    "copyJson": "Copier le JSON",
+    "copyText": "Copier le texte",
+    "copied": "Copié",
+    "copyFailed": "Échec de la copie",
+    "textHeader": "Rapport de panne Dishylink : {{label}}",
+    "starlinkOutage": "Panne de liaison",
+    "dishUnreachable": "Antenne injoignable"
+  },
   "events": {
     "title": "Événements et pannes",
     "count_one": "{{count}} événement",
@@ -1314,7 +1340,7 @@
       "tip": "Le ping de maintien du routeur vers l'antenne via le câble Ethernet est resté sans réponse. Attendu pendant un redémarrage de l'antenne ; sinon, cela désigne le câble entre les deux."
     },
     "HIGH_DOWNLINK_PACKET_LOSS": {
-      "label": "Forte perte de paquets en liaison descendante",
+      "label": "Perte de paquets élevée",
       "tip": "Une part accrue des paquets entrants a été perdue. La connexion est restée active — c'est une dégradation de qualité, pas un arrêt du service."
     },
     "CLIENT_SWITCHING_UPSTREAM_MAC": {

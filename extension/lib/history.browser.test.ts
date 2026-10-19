@@ -27,7 +27,6 @@ function sample(secondIntoMinute: number, powerW: number): TelemetrySample {
     powerW,
     routerLatencyMs: null,
     routerPingSuccessPercent: null,
-    snowMeltActive: null,
   };
 }
 

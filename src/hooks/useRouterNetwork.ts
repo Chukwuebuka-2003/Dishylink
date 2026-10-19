@@ -171,7 +171,6 @@ export async function fetchPersistedClientHistory(): Promise<SeededClientHistory
         powerW: 0,
         routerLatencyMs: null,
         routerPingSuccessPercent: null,
-        snowMeltActive: null,
       });
       history.set(row.key, series);
     }
@@ -187,7 +186,6 @@ export async function fetchPersistedClientHistory(): Promise<SeededClientHistory
         powerW: 0,
         routerLatencyMs: null,
         routerPingSuccessPercent: null,
-        snowMeltActive: null,
       });
       history.set(sample.key, series);
       if (sample.atMs > newestSampleMs) newestSampleMs = sample.atMs;
@@ -235,7 +233,6 @@ export function appendClientSamples(
       powerW: 0,
       routerLatencyMs: null,
       routerPingSuccessPercent: null,
-      snowMeltActive: null,
     });
     history.set(sample.key, series);
     if (sample.atMs > newestMs) newestMs = sample.atMs;

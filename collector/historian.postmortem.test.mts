@@ -26,9 +26,20 @@ const WINDOW_START = START - 5 * 60_000;
 
 // The recorder's own episode: opened when the drop was detected, still open on
 // disk so the engine restores it across the restart this import represents.
+// Beside it, the dish's heater ran for a minute inside the pre-drop window.
 writeFileSync(
   join(DATA_DIR, "alerts.ndjson"),
-  JSON.stringify({ source: "system", key: "starlinkOutage", startMs: START, endMs: null }) + "\n",
+  [
+    { source: "system", key: "starlinkOutage", startMs: START, endMs: null },
+    {
+      source: "dish",
+      key: "isHeating",
+      startMs: WINDOW_START + 60_000,
+      endMs: WINDOW_START + 120_000,
+    },
+  ]
+    .map((episode) => JSON.stringify(episode))
+    .join("\n") + "\n",
 );
 
 // The dish's own event log entry for the same outage, for the cause.
@@ -43,9 +54,8 @@ writeFileSync(
 );
 
 // The 1 s sample window the recorder would be holding: a healthy five minutes
-// before the drop (latency 40 ms, 100 Mbps down), snow melt asserted on the
-// first half only — enough to answer "was snow melt active?".
-function sample(timestampMs: number, snowMelt: boolean | null): TelemetrySample {
+// before the drop (latency 40 ms, 100 Mbps down).
+function sample(timestampMs: number): TelemetrySample {
   return {
     timestampMs,
     latencyMs: 40,
@@ -55,11 +65,10 @@ function sample(timestampMs: number, snowMelt: boolean | null): TelemetrySample 
     powerW: 80,
     routerLatencyMs: null,
     routerPingSuccessPercent: null,
-    snowMeltActive: snowMelt,
   };
 }
 const samples: TelemetrySample[] = Array.from({ length: 300 }, (_, second) =>
-  sample(WINDOW_START + second * 1000, second < 150 ? true : null),
+  sample(WINDOW_START + second * 1000),
 );
 writeFileSync(join(DATA_DIR, "samples.json"), JSON.stringify(samples));
 
@@ -118,7 +127,7 @@ describe("the recorder's post-mortem path", () => {
       latencyAvgMs: 40,
       downlinkAvgBps: 100_000_000,
       uplinkAvgBps: 10_000_000,
-      snowMelt: "active",
+      heaterActive: true,
       source: "samples",
     });
 
@@ -128,8 +137,9 @@ describe("the recorder's post-mortem path", () => {
       .split("\n")
       .filter((line) => line.trim().length > 0)
       .map((line) => JSON.parse(line));
-    expect(episodes).toHaveLength(1);
-    expect(episodes[0]).toMatchObject({ source: "system", key: "starlinkOutage", endMs: END });
+    expect(episodes.filter((episode) => episode.key === "starlinkOutage")).toEqual([
+      expect.objectContaining({ source: "system", startMs: START, endMs: END }),
+    ]);
 
     const { status, body } = await call("GET", "/api/outages/reports");
     expect(status).toBe(200);

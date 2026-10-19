@@ -1195,6 +1195,32 @@
       }
     }
   },
+  "eventDetail": {
+    "title": "Ereignisdetails",
+    "kind": { "outage": "Ausfall", "degraded": "Beeinträchtigt", "info": "Info" },
+    "span": "{{start}} bis {{end}}",
+    "noReport": "Die Verlaufsaufzeichnung hat dieses Ereignis nicht erfasst, daher gibt es dazu keine Messwerte.",
+    "beforeDrop": "Fünf Minuten vor dem Ausfall",
+    "latency": "Latenz",
+    "downlink": "Downlink",
+    "uplink": "Uplink",
+    "packetLoss": "Paketverlust",
+    "heater": "Heizung",
+    "heaterOn": "Aktiv",
+    "heaterOff": "Aus",
+    "notRecorded": "nicht aufgezeichnet",
+    "coverage": "{{seconds}} s des Zeitfensters aufgezeichnet",
+    "thermal": "Thermisch",
+    "thermalNone": "Keine",
+    "stillRunning": "dauert an",
+    "copyJson": "JSON kopieren",
+    "copyText": "Text kopieren",
+    "copied": "Kopiert",
+    "copyFailed": "Kopieren fehlgeschlagen",
+    "textHeader": "Dishylink-Ausfallbericht: {{label}}",
+    "starlinkOutage": "Verbindungsausfall",
+    "dishUnreachable": "Antenne nicht erreichbar"
+  },
   "events": {
     "title": "Ereignisse & Ausfälle",
     "count_one": "{{count}} Ereignis",
@@ -1288,7 +1314,7 @@
       "tip": "Der Keepalive-Ping des Routers zur Antenne über das Ethernet-Kabel blieb unbeantwortet. Während eines Neustarts der Antenne zu erwarten; sonst deutet es auf das Kabel zwischen beiden."
     },
     "HIGH_DOWNLINK_PACKET_LOSS": {
-      "label": "Hoher Paketverlust im Downlink",
+      "label": "Erhöhter Paketverlust",
       "tip": "Ein erhöhter Anteil eingehender Pakete ging verloren. Die Verbindung blieb bestehen – das ist eine Qualitätsminderung, kein Dienstausfall."
     },
     "CLIENT_SWITCHING_UPSTREAM_MAC": {

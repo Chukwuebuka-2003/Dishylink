@@ -12,7 +12,6 @@ function sample(routerPingSuccessPercent: number | null): TelemetrySample {
     powerW: 30,
     routerLatencyMs: null,
     routerPingSuccessPercent,
-    snowMeltActive: null,
   };
 }
 
@@ -48,7 +47,6 @@ describe("windowCoverage", () => {
       powerW: 30,
       routerLatencyMs: null,
       routerPingSuccessPercent: null,
-      snowMeltActive: null,
     }));
   }
 
@@ -103,7 +101,6 @@ describe("energyKWh", () => {
       powerW: watts,
       routerLatencyMs: null,
       routerPingSuccessPercent: null,
-      snowMeltActive: null,
     }));
   }
 
