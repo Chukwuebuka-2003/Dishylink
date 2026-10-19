@@ -180,9 +180,15 @@ export function outageEventLabel(cause: string, t: TFunction): string {
 /** What the event was, for surfaces that treat outages differently from the
  *  link and informational events sharing the same log. */
 export function outageEventKind(cause: string): EventKind {
-  const kind = OUTAGE_KIND[canonicalCause(cause)];
-  if (kind) return kind;
-  return /^EVENT_REASON_OUTAGE_|^OUTAGE_/.test(cause) ? "outage" : "info";
+  return (
+    knownEventKind(cause) ?? (/^EVENT_REASON_OUTAGE_|^OUTAGE_/.test(cause) ? "outage" : "info")
+  );
+}
+
+/** The catalogued kind, or undefined for a cause the catalogue does not know:
+ *  a new firmware token, or a row titled in plain words (thermal episodes). */
+export function knownEventKind(cause: string): EventKind | undefined {
+  return OUTAGE_KIND[canonicalCause(cause)];
 }
 
 /**

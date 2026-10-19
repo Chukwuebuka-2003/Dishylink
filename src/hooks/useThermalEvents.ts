@@ -11,12 +11,13 @@
 // (modem_asic_temp, tx_if_temp) live on TransceiverGetStatus, which this
 // firmware answers with Unimplemented. The flags are the whole signal.
 
-import { useEffect, useMemo, useState } from "react";
+import { useMemo } from "react";
 import { useTranslation } from "react-i18next";
+import type { TFunction } from "i18next";
 import { useNow } from "./useNow";
+import { usePolledEndpoint } from "./usePolledEndpoint";
 import type { OutageEvent } from "@core/telemetry";
 import type { TranslationKey } from "@core/i18n/resources";
-import { apiRequest } from "../lib/apiHost";
 
 interface ThermalAlertSpec {
   /** Key on `alerts`, as emitted by the protobuf JSON mapping. */
@@ -45,12 +46,24 @@ const THERMAL_ALERTS: ThermalAlertSpec[] = [
 ];
 
 const SPEC_BY_ALERT_KEY = new Map(THERMAL_ALERTS.map((spec) => [spec.alertKey, spec]));
-const REFRESH_MS = 30_000;
+
+/** The episode's name in the user's language, or the raw key for one the
+ *  catalog does not know. */
+export function thermalEpisodeLabel(alertKey: string, t: TFunction): string {
+  const spec = SPEC_BY_ALERT_KEY.get(alertKey);
+  return spec ? t(spec.cause) : alertKey;
+}
 
 interface ThermalEpisodeJson {
   alertKey: string;
   startMs: number;
   endMs: number | null;
+}
+
+const NO_EPISODES: ThermalEpisodeJson[] = [];
+
+function pickEpisodes(body: unknown): ThermalEpisodeJson[] {
+  return (body as { episodes?: ThermalEpisodeJson[] }).episodes ?? NO_EPISODES;
 }
 
 /**
@@ -59,33 +72,13 @@ interface ThermalEpisodeJson {
  */
 export function useThermalEvents(): OutageEvent[] {
   const { t } = useTranslation();
-  const [episodes, setEpisodes] = useState<ThermalEpisodeJson[]>([]);
+  const episodes = usePolledEndpoint("/api/thermal", pickEpisodes, NO_EPISODES);
   // An episode still running has no end, so its duration is measured against now
   // and grows while it runs. Taken from the ticking clock so it actually advances
   // on screen; read straight from Date.now() it would sit at whatever it was when
   // something unrelated last caused a render. Durations show seconds, so it ticks
   // every second.
   const nowMs = useNow();
-
-  useEffect(() => {
-    let disposed = false;
-    const load = async () => {
-      try {
-        const response = await apiRequest("/api/thermal", { signal: AbortSignal.timeout(4_000) });
-        if (!response.ok) return;
-        const body = (await response.json()) as { episodes?: ThermalEpisodeJson[] };
-        if (!disposed) setEpisodes(body.episodes ?? []);
-      } catch {
-        // historian down: the dish's own events still populate the log
-      }
-    };
-    load();
-    const timerId = window.setInterval(load, REFRESH_MS);
-    return () => {
-      disposed = true;
-      window.clearInterval(timerId);
-    };
-  }, []);
 
   return useMemo(() => {
     return episodes.flatMap((episode) => {

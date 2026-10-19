@@ -1215,6 +1215,32 @@
       }
     }
   },
+  "eventDetail": {
+    "title": "Detalles del evento",
+    "kind": { "outage": "Corte", "degraded": "Degradado", "info": "Info" },
+    "span": "{{start}} a {{end}}",
+    "noReport": "El registro del historial no cronometró este evento, así que no hay cifras.",
+    "beforeDrop": "Cinco minutos antes del corte",
+    "latency": "Latencia",
+    "downlink": "Descarga",
+    "uplink": "Subida",
+    "packetLoss": "Pérdida de paquetes",
+    "heater": "Calefactor",
+    "heaterOn": "En marcha",
+    "heaterOff": "Apagado",
+    "notRecorded": "no registrado",
+    "coverage": "{{seconds}} s del intervalo registrados",
+    "thermal": "Térmico",
+    "thermalNone": "Ninguno",
+    "stillRunning": "aún en curso",
+    "copyJson": "Copiar JSON",
+    "copyText": "Copiar texto",
+    "copied": "Copiado",
+    "copyFailed": "No se pudo copiar",
+    "textHeader": "Informe de corte de Dishylink: {{label}}",
+    "starlinkOutage": "Corte del enlace",
+    "dishUnreachable": "Antena sin respuesta"
+  },
   "events": {
     "title": "Eventos y cortes",
     "count_one": "{{count}} evento",
@@ -1314,7 +1340,7 @@
       "tip": "El ping de mantenimiento del router a la antena por el cable Ethernet quedó sin respuesta. Es esperable mientras la antena se reinicia; en otro caso, apunta al cable entre ambos."
     },
     "HIGH_DOWNLINK_PACKET_LOSS": {
-      "label": "Alta pérdida de paquetes en el enlace descendente",
+      "label": "Pérdida de paquetes elevada",
       "tip": "Se perdió una proporción elevada de paquetes entrantes. La conexión se mantuvo: es una degradación de calidad, no una parada del servicio."
     },
     "CLIENT_SWITCHING_UPSTREAM_MAC": {

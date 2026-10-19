@@ -1215,6 +1215,32 @@
       }
     }
   },
+  "eventDetail": {
+    "title": "Detalhes do evento",
+    "kind": { "outage": "Interrupção", "degraded": "Degradado", "info": "Info" },
+    "span": "{{start}} a {{end}}",
+    "noReport": "O gravador de histórico não cronometrou este evento, por isso não há valores.",
+    "beforeDrop": "Cinco minutos antes da interrupção",
+    "latency": "Latência",
+    "downlink": "Download",
+    "uplink": "Upload",
+    "packetLoss": "Perda de pacotes",
+    "heater": "Aquecedor",
+    "heaterOn": "Ligado",
+    "heaterOff": "Desligado",
+    "notRecorded": "não registrado",
+    "coverage": "{{seconds}} s da janela registrados",
+    "thermal": "Térmico",
+    "thermalNone": "Nenhum",
+    "stillRunning": "ainda em andamento",
+    "copyJson": "Copiar JSON",
+    "copyText": "Copiar texto",
+    "copied": "Copiado",
+    "copyFailed": "Falha ao copiar",
+    "textHeader": "Relatório de interrupção do Dishylink: {{label}}",
+    "starlinkOutage": "Interrupção do enlace",
+    "dishUnreachable": "Antena sem resposta"
+  },
   "events": {
     "title": "Eventos e interrupções",
     "count_one": "{{count}} evento",
@@ -1314,7 +1340,7 @@
       "tip": "O ping de keepalive do roteador para a antena pelo cabo Ethernet ficou sem resposta. Esperado enquanto a antena reinicia; caso contrário, aponta para o cabo entre eles."
     },
     "HIGH_DOWNLINK_PACKET_LOSS": {
-      "label": "Alta perda de pacotes no downlink",
+      "label": "Perda de pacotes elevada",
       "tip": "Uma parcela elevada dos pacotes recebidos foi perdida. A conexão continuou ativa — isso é degradação de qualidade, não parada do serviço."
     },
     "CLIENT_SWITCHING_UPSTREAM_MAC": {

@@ -1171,6 +1171,32 @@
       }
     }
   },
+  "eventDetail": {
+    "title": "Event details",
+    "kind": { "outage": "Outage", "degraded": "Degraded", "info": "Info" },
+    "span": "{{start}} to {{end}}",
+    "noReport": "The history recorder did not time this event, so there are no figures for it.",
+    "beforeDrop": "Five minutes before the drop",
+    "latency": "Latency",
+    "downlink": "Downlink",
+    "uplink": "Uplink",
+    "packetLoss": "Packet loss",
+    "heater": "Heater",
+    "heaterOn": "Running",
+    "heaterOff": "Off",
+    "notRecorded": "not recorded",
+    "coverage": "{{seconds}} s of the window recorded",
+    "thermal": "Thermal",
+    "thermalNone": "None",
+    "stillRunning": "still running",
+    "copyJson": "Copy JSON",
+    "copyText": "Copy text",
+    "copied": "Copied",
+    "copyFailed": "Copy failed",
+    "textHeader": "Dishylink outage report: {{label}}",
+    "starlinkOutage": "Link outage",
+    "dishUnreachable": "Dish unreachable"
+  },
   "events": {
     "title": "Events & outages",
     "count_one": "{{count}} event",
@@ -1258,7 +1284,7 @@
       "tip": "The router's keepalive ping to the dish over the Ethernet cable went unanswered. Expected while the dish reboots; otherwise it points at the cable between them."
     },
     "HIGH_DOWNLINK_PACKET_LOSS": {
-      "label": "High downlink packet loss",
+      "label": "Elevated packet loss",
       "tip": "A raised share of incoming packets was lost. The connection stayed up — this is quality degrading, not service stopping."
     },
     "CLIENT_SWITCHING_UPSTREAM_MAC": {
