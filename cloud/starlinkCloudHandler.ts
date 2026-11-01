@@ -573,6 +573,10 @@ export function createCloudHandler(options: CloudHandlerOptions = {}) {
       return { status: 200, body: { ok: true } };
     } catch (error) {
       if (error instanceof SessionExpiredError) {
+        // The cookie was syntactically valid but rejected by the server.
+        // Remove it so the app doesn't restart in a silently broken state.
+        clearCookie();
+        forgetSession();
         return {
           status: 428,
           body: {

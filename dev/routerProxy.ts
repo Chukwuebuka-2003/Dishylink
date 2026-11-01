@@ -67,6 +67,27 @@ export function routerProxy(): Plugin {
         const url = req.url ?? "";
 
         if (url === "/router-address") {
+          // Mutating writes redirect all subsequent router proxy traffic, so
+          // they must come from a local origin — same rule as /cloud/*.
+          if (req.method !== "GET" && req.method !== "HEAD" && req.method !== "OPTIONS") {
+            const origin = req.headers.origin;
+            const isLocal =
+              !origin ||
+              (() => {
+                try {
+                  const h = new URL(origin).hostname;
+                  return h === "localhost" || h === "127.0.0.1" || h === "::1";
+                } catch {
+                  return false;
+                }
+              })();
+            if (!isLocal) {
+              res.statusCode = 403;
+              res.setHeader("content-type", "application/json");
+              res.end(JSON.stringify({ error: "forbidden_origin" }));
+              return;
+            }
+          }
           const answer = () => {
             res.statusCode = 200;
             res.setHeader("content-type", "application/json");

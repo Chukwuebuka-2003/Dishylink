@@ -669,10 +669,16 @@ function routerAddress(): RouterAddress {
 }
 
 function registerExternalLinkHandler(): void {
-  ipcMain.on("open-external", (_event, url: string) => {
-    if (/^(https?:\/\/|mailto:)/.test(url)) {
-      void shell.openExternal(url);
+  ipcMain.on("open-external", (_event, url: unknown) => {
+    if (typeof url !== "string") return;
+    let parsed: URL;
+    try {
+      parsed = new URL(url);
+    } catch {
+      return;
     }
+    if (parsed.protocol !== "https:" && parsed.protocol !== "http:" && parsed.protocol !== "mailto:") return;
+    void shell.openExternal(url);
   });
 }
 
