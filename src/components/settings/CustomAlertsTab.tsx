@@ -123,7 +123,7 @@ function WebhookSettingsSection() {
         <Input
           value={editWebhookUrl}
           onChange={(e) => setEditWebhookUrl(e.target.value)}
-          placeholder="https://hooks.slack.com/services/..."
+          placeholder="https://hooks.slack.com/… or https://api.telegram.org/bot<TOKEN>/sendMessage?chat_id=<ID>"
           className="w-[300px]"
         />
       </SettingRow>

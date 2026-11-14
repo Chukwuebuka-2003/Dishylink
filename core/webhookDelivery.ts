@@ -83,11 +83,26 @@ function discordText(payload: WebhookPayload): object {
   return { content: payload.text, username: "Dishylink" };
 }
 
+/**
+ * Telegram Bot API: POST to sendMessage with chat_id + text.
+ * The chat_id is read from the ?chat_id= query param that the user appends
+ * to their webhook URL, e.g.:
+ *   https://api.telegram.org/bot<TOKEN>/sendMessage?chat_id=<ID>
+ * If chat_id is missing from the URL we fall back to the generic payload so
+ * the error is visible rather than silently swallowed.
+ */
+function telegramText(url: string, payload: WebhookPayload): object {
+  const chatId = new URL(url).searchParams.get("chat_id");
+  if (!chatId) return payload;
+  return { chat_id: chatId, text: payload.text, parse_mode: "HTML" };
+}
+
 /** Detect the service from the URL and wrap accordingly. */
 function wrapPayload(url: string, payload: WebhookPayload): object {
   const lower = url.toLowerCase();
   if (lower.includes("hooks.slack.com")) return slackText(payload);
   if (lower.includes("discord.com/api/webhooks")) return discordText(payload);
+  if (lower.includes("api.telegram.org/bot")) return telegramText(url, payload);
   // Generic: send the full structured payload.
   return payload;
 }
