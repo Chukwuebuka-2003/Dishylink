@@ -1251,7 +1251,11 @@
   },
   "eventDetail": {
     "title": "Detalhes do evento",
-    "kind": { "outage": "Interrupção", "degraded": "Degradado", "info": "Info" },
+    "kind": {
+      "outage": "Interrupção",
+      "degraded": "Degradado",
+      "info": "Info"
+    },
     "span": "{{start}} a {{end}}",
     "noReport": "O gravador de histórico não cronometrou este evento, por isso não há valores.",
     "beforeDrop": "Cinco minutos antes da interrupção",
@@ -1437,5 +1441,15 @@
     "notificationsUndeliverable": "O macOS não está entregando as notificações — permita o Dishylink em Ajustes do Sistema ▸ Notificações.",
     "notificationsDevRun": "As notificações nativas precisam do aplicativo Dishylink instalado; uma execução de desenvolvimento não consegue exibi-las.",
     "signInTitle": "Entrar na Starlink"
+  },
+  "dashboard": {
+    "customize": "Customize",
+    "customizeLayout": "Customize dashboard",
+    "compactMode": "Compact mode",
+    "compactModeDesc": "Smaller tiles and shorter charts for more information density.",
+    "panels": "Panels",
+    "showPanel": "Show {{panel}}",
+    "hidePanel": "Hide {{panel}}",
+    "resetLayout": "Reset to default"
   }
 }

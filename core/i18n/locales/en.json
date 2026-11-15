@@ -793,6 +793,16 @@
     "bucketNoData": "{{when}} · no data — the historian wasn't running",
     "bucketTotal": "{{when}} · {{kwh}} kWh"
   },
+  "dashboard": {
+    "customize": "Customize",
+    "customizeLayout": "Customize dashboard",
+    "compactMode": "Compact mode",
+    "compactModeDesc": "Smaller tiles and shorter charts for more information density.",
+    "panels": "Panels",
+    "showPanel": "Show {{panel}}",
+    "hidePanel": "Hide {{panel}}",
+    "resetLayout": "Reset to default"
+  },
   "navigation": {
     "speedTest": "Speed test",
     "alignment": "Alignment",

@@ -1251,7 +1251,11 @@
   },
   "eventDetail": {
     "title": "Détails de l'événement",
-    "kind": { "outage": "Panne", "degraded": "Dégradé", "info": "Info" },
+    "kind": {
+      "outage": "Panne",
+      "degraded": "Dégradé",
+      "info": "Info"
+    },
     "span": "{{start}} à {{end}}",
     "noReport": "L'enregistreur d'historique n'a pas chronométré cet événement, il n'y a donc aucune mesure.",
     "beforeDrop": "Cinq minutes avant la panne",
@@ -1437,5 +1441,15 @@
     "notificationsUndeliverable": "macOS ne délivre pas les notifications — autorisez Dishylink dans Réglages Système ▸ Notifications.",
     "notificationsDevRun": "Les notifications natives nécessitent l'application Dishylink installée ; une exécution de développement ne peut pas les afficher.",
     "signInTitle": "Se connecter à Starlink"
+  },
+  "dashboard": {
+    "customize": "Customize",
+    "customizeLayout": "Customize dashboard",
+    "compactMode": "Compact mode",
+    "compactModeDesc": "Smaller tiles and shorter charts for more information density.",
+    "panels": "Panels",
+    "showPanel": "Show {{panel}}",
+    "hidePanel": "Hide {{panel}}",
+    "resetLayout": "Reset to default"
   }
 }

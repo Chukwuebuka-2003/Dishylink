@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useMemo, useState, useSyncExternalStore } from "react";
 import { useTranslation } from "react-i18next";
 import type { DishStatusJson, DishObstructionMapJson } from "@core/dishClient";
 import { readRouterLatencyMs, type OutageEvent, type TelemetrySample } from "@core/telemetry";
@@ -26,6 +26,13 @@ import { DetailsModal } from "../ui/details-modal";
 import { StatDetailPanel } from "./StatDetailPanel";
 import { formatThroughputLabel, formatThroughputTick } from "../../lib/format";
 import { AppPrompts } from "../shared/AppPrompts";
+import { DashboardCustomizer } from "./DashboardCustomizer";
+import {
+  readDashboardLayout,
+  subscribeToDashboardLayout,
+  type PanelId,
+} from "../../lib/dashboardLayout";
+import { SlidersHorizontalIcon } from "lucide-react";
 
 const CHART_TIME_RANGES: { label: string; minutes: number }[] = [
   { label: "15M", minutes: 15 },
@@ -45,8 +52,6 @@ const THROUGHPUT_LEGEND_COLORS = ["--series-down", "--series-up"];
 interface DashboardViewProps {
   status: DishStatusJson | null;
   connectionState: DishConnectionState;
-  /** Debounced offline flag from the telemetry hook — the terminal card's stale
-   *  badge keys off this, not the raw connectionState, so a blip doesn't flash it. */
   stale: boolean;
   obstructionMap: DishObstructionMapJson | null;
   liveDownlink: { value: string; unit: string };
@@ -66,7 +71,6 @@ interface DashboardViewProps {
   samples: TelemetrySample[];
   onOpenSatelliteView: () => void;
   onExpandTerminal: () => void;
-  /** Opens the network panel on one device, from an event that names it. */
   onOpenDevice: (entryKey: string) => void;
 }
 
@@ -96,9 +100,11 @@ export function DashboardView({
 }: DashboardViewProps) {
   const { t } = useTranslation();
   const [openDetailId, setOpenDetailId] = useState<string | null>(null);
+  const [customizerOpen, setCustomizerOpen] = useState(false);
+  const layout = useSyncExternalStore(subscribeToDashboardLayout, readDashboardLayout);
+  const { order, hidden, compact } = layout;
+
   const latencyQuality = useLatencyHistory("1h", true);
-  // Memoised on `t` so each chart keeps one series array per language and its
-  // bucket-binning memo is not invalidated every render.
   const chartSeries = useMemo(
     () => ({
       throughput: throughputSeries(t),
@@ -119,8 +125,6 @@ export function DashboardView({
       }),
     [status, livePowerW, powerWindowEndMs, recentPingSuccessPercent, outageEvents, t],
   );
-  // One list for as long as the events hold still, so the log can skip the
-  // dashboard's every-second redraw.
   const logEvents = useMemo(
     () => [...outageEvents, ...thermalEvents],
     [outageEvents, thermalEvents],
@@ -149,18 +153,16 @@ export function DashboardView({
     );
   }
 
-  // popPingLatencyMs carries the same non-measurement sentinels (proto3's
-  // omitted zero, an occasional negative) that readRouterLatencyMs already
-  // filters for the router's own reading — the tile must reject them too.
   const liveLatencyMs = readRouterLatencyMs(status?.popPingLatencyMs);
 
+  // In compact mode, tiles show a smaller value and no sparkline.
   const statTiles: StatTileConfig[] = [
     {
       label: t("metrics.download"),
       value: liveDownlink.value,
       unit: liveDownlink.unit,
       caption: t("metrics.currentTraffic"),
-      sparkValues: sparklines.downlink,
+      sparkValues: compact ? undefined : sparklines.downlink,
       sparkColorVar: "--series-down",
       onOpenDetail: () => setOpenDetailId("download"),
     },
@@ -169,7 +171,7 @@ export function DashboardView({
       value: liveUplink.value,
       unit: liveUplink.unit,
       caption: t("metrics.currentTraffic"),
-      sparkValues: sparklines.uplink,
+      sparkValues: compact ? undefined : sparklines.uplink,
       sparkColorVar: "--series-up",
       onOpenDetail: () => setOpenDetailId("upload"),
     },
@@ -179,24 +181,22 @@ export function DashboardView({
       unit: "ms",
       caption:
         !latencyQuality.unavailable && latencyQuality.data ? (
-          <span className='flex w-full items-center justify-between gap-2 whitespace-nowrap'>
+          <span className="flex w-full items-center justify-between gap-2 whitespace-nowrap">
             <span>
               {t("metrics.quality")}:{" "}
-              <span className='text-[13px] font-semibold text-foreground'>
+              <span className="text-[13px] font-semibold text-foreground">
                 {latencyQuality.data.score}
               </span>
               , {t("metrics.grade")}{" "}
               <span
-                className='text-[10px]'
+                className="text-[10px]"
                 style={{ color: `var(${gradeColorVar(latencyQuality.data.grade)})` }}
               >
                 {latencyQuality.data.grade}
               </span>
             </span>
-            <span aria-hidden className='max-[1300px]:hidden'>
-              ·
-            </span>
-            <span className='flex-none max-[1300px]:hidden'>
+            <span aria-hidden className="max-[1300px]:hidden">·</span>
+            <span className="flex-none max-[1300px]:hidden">
               {latencyQuality.data.dish.p95 !== null
                 ? `${latencyQuality.data.dish.p95.toFixed(0)} ms p95`
                 : t("metrics.noData")}
@@ -205,7 +205,7 @@ export function DashboardView({
         ) : (
           t("metrics.popPingLive")
         ),
-      sparkValues: sparklines.latency,
+      sparkValues: compact ? undefined : sparklines.latency,
       onOpenDetail: () => setOpenDetailId("latency"),
     },
     {
@@ -213,7 +213,7 @@ export function DashboardView({
       value: livePowerW.toFixed(0),
       unit: "W",
       caption: t("metrics.currentDraw"),
-      sparkValues: sparklines.power,
+      sparkValues: compact ? undefined : sparklines.power,
       onOpenDetail: () => setOpenDetailId("power"),
     },
     {
@@ -221,7 +221,7 @@ export function DashboardView({
       value: recentPingSuccessPercent.toFixed(1),
       unit: "%",
       caption: t("metrics.lastMinute"),
-      sparkValues: sparklines.pingSuccess,
+      sparkValues: compact ? undefined : sparklines.pingSuccess,
       onOpenDetail: () => setOpenDetailId("pingSuccess"),
     },
     {
@@ -234,113 +234,193 @@ export function DashboardView({
     },
   ];
 
-  return (
-    <main className='mx-auto flex max-w-[1400px] flex-col gap-3.5 px-6 pt-3.5 pb-20 animate-[rise_400ms_ease_both]'>
-      <AppPrompts />
+  // Chart height: shorter in compact mode.
+  const chartHeight = compact ? 110 : 160;
 
-      {/* Stat tiles */}
-      <section className='grid grid-cols-6 gap-3.5 max-[1080px]:grid-cols-3'>
-        {statTiles.map((tile) => (
-          <StatTile key={tile.label} {...tile} />
-        ))}
-      </section>
+  // Render one panel by ID, respecting the hidden list.
+  const isHidden = (id: PanelId) => hidden.includes(id);
 
-      <section className='grid grid-cols-12 gap-3.5 max-[1080px]:flex max-[1080px]:flex-col'>
-        {/* Throughput chart */}
-        <SectionCard
-          title={t("metrics.throughput")}
-          className='col-span-8'
-          headerAction={
-            <SegmentedControl
-              options={CHART_TIME_RANGE_FILTER_OPTIONS}
-              value={String(windowMinutes)}
-              onChange={(minutes) => onWindowMinutesChange(Number(minutes))}
-              label={t("metrics.chartTimeWindow")}
-            />
-          }
-        >
-          <TelemetryChart
-            samples={chartSamples}
-            series={chartSeries.throughput}
-            windowMinutes={windowMinutes}
-            formatValue={formatThroughputLabel}
-            formatTick={formatThroughputTick}
-            outageEvents={outageEvents}
-          />
-          <div className='mt-2 flex items-center justify-center gap-3.5'>
-            {chartSeries.throughput.map((entry, index) => (
-              <span key={entry.id} className={legendItem}>
-                <span
-                  className='size-[9px] flex-none rounded-full'
-                  style={{ background: `var(${THROUGHPUT_LEGEND_COLORS[index]})` }}
-                />{" "}
-                {entry.label}
-              </span>
+  const timeRangeControl = (
+    <SegmentedControl
+      options={CHART_TIME_RANGE_FILTER_OPTIONS}
+      value={String(windowMinutes)}
+      onChange={(minutes) => onWindowMinutesChange(Number(minutes))}
+      label={t("metrics.chartTimeWindow")}
+    />
+  );
+
+  function renderPanel(id: PanelId): React.ReactNode {
+    if (isHidden(id)) return null;
+    switch (id) {
+      case "tiles":
+        return (
+          <section
+            key="tiles"
+            className={
+              compact
+                ? "grid grid-cols-6 gap-2 max-[1080px]:grid-cols-3"
+                : "grid grid-cols-6 gap-3.5 max-[1080px]:grid-cols-3"
+            }
+          >
+            {statTiles.map((tile) => (
+              <StatTile key={tile.label} {...tile} compact={compact} />
             ))}
-          </div>
-        </SectionCard>
+          </section>
+        );
 
-        {/* Obstruction map */}
-        <ObstructionCard
-          obstructionMap={obstructionMap}
-          obstructionStats={status?.obstructionStats}
-          status={status}
-          onOpenSatelliteView={onOpenSatelliteView}
-        />
+      case "throughput":
+        return (
+          <SectionCard
+            key="throughput"
+            title={t("metrics.throughput")}
+            className="col-span-8"
+            headerAction={timeRangeControl}
+          >
+            <TelemetryChart
+              samples={chartSamples}
+              series={chartSeries.throughput}
+              windowMinutes={windowMinutes}
+              formatValue={formatThroughputLabel}
+              formatTick={formatThroughputTick}
+              outageEvents={outageEvents}
+              height={compact ? 110 : undefined}
+            />
+            {!compact && (
+              <div className="mt-2 flex items-center justify-center gap-3.5">
+                {chartSeries.throughput.map((entry, index) => (
+                  <span key={entry.id} className={legendItem}>
+                    <span
+                      className="size-[9px] flex-none rounded-full"
+                      style={{ background: `var(${THROUGHPUT_LEGEND_COLORS[index]})` }}
+                    />{" "}
+                    {entry.label}
+                  </span>
+                ))}
+              </div>
+            )}
+          </SectionCard>
+        );
 
-        {/* Latency chart */}
-        <SectionCard
-          title={t("metrics.latency")}
-          className='col-span-8'
-          meta={t("metrics.latencyMeta")}
-        >
-          <TelemetryChart
-            samples={chartSamples}
-            series={chartSeries.latency}
-            windowMinutes={windowMinutes}
-            formatValue={(value) => `${value.toFixed(0)} ms`}
-            outageEvents={outageEvents}
-            height={160}
+      case "obstruction":
+        return (
+          <ObstructionCard
+            key="obstruction"
+            obstructionMap={obstructionMap}
+            obstructionStats={status?.obstructionStats}
+            status={status}
+            onOpenSatelliteView={onOpenSatelliteView}
           />
-        </SectionCard>
+        );
 
-        {/* Power draw chart */}
-        <SectionCard
-          title={t("metrics.powerDraw")}
-          className='col-span-8'
-          meta={t("metrics.powerMeta", {
-            value: ((averagePowerW * 24) / 1000).toFixed(2),
-          })}
-        >
-          <TelemetryChart
-            samples={powerChartSamples}
-            series={chartSeries.power}
-            windowMinutes={windowMinutes}
-            formatValue={(value) => `${value.toFixed(0)} W`}
-            windowEndMs={powerWindowEndMs}
-            height={160}
+      case "latency":
+        return (
+          <SectionCard
+            key="latency"
+            title={t("metrics.latency")}
+            className="col-span-8"
+            meta={t("metrics.latencyMeta")}
+          >
+            <TelemetryChart
+              samples={chartSamples}
+              series={chartSeries.latency}
+              windowMinutes={windowMinutes}
+              formatValue={(value) => `${value.toFixed(0)} ms`}
+              outageEvents={outageEvents}
+              height={chartHeight}
+            />
+          </SectionCard>
+        );
+
+      case "power":
+        return (
+          <SectionCard
+            key="power"
+            title={t("metrics.powerDraw")}
+            className="col-span-8"
+            meta={t("metrics.powerMeta", {
+              value: ((averagePowerW * 24) / 1000).toFixed(2),
+            })}
+          >
+            <TelemetryChart
+              samples={powerChartSamples}
+              series={chartSeries.power}
+              windowMinutes={windowMinutes}
+              formatValue={(value) => `${value.toFixed(0)} W`}
+              windowEndMs={powerWindowEndMs}
+              height={chartHeight}
+            />
+          </SectionCard>
+        );
+
+      case "outages":
+        return (
+          <OutageLog
+            key="outages"
+            outageEvents={logEvents}
+            reports={reports}
+            onOpenDevice={onOpenDevice}
           />
-        </SectionCard>
+        );
 
-        {/* Outage log */}
-        <OutageLog outageEvents={logEvents} reports={reports} onOpenDevice={onOpenDevice} />
-
-        {/* Terminal card */}
-        {status ? (
-          <DishTerminalCard status={status} stale={stale} onExpand={onExpandTerminal} />
+      case "terminal":
+        return status ? (
+          <DishTerminalCard
+            key="terminal"
+            status={status}
+            stale={stale}
+            onExpand={onExpandTerminal}
+          />
         ) : (
           <SectionCard
+            key="terminal"
             title={t("navigation.dishTerminal")}
-            className='col-span-12'
+            className="col-span-12"
             meta={
               connectionState === "unreachable"
                 ? t("metrics.dishNotAnswering")
                 : t("metrics.waitingForDish")
             }
           />
-        )}
+        );
+
+      default:
+        return null;
+    }
+  }
+
+  // Split panels: "tiles" always renders at the top (it's always visible).
+  // All other panels go into the scrollable grid section, in user-defined order.
+  const gridPanels = order.filter((id) => id !== "tiles");
+
+  return (
+    <main className="mx-auto flex max-w-[1400px] flex-col gap-3.5 px-6 pt-3.5 pb-20 animate-[rise_400ms_ease_both]">
+      <AppPrompts />
+
+      {/* Stat tiles — always first */}
+      {renderPanel("tiles")}
+
+      {/* Customize button */}
+      <div className="flex justify-end -mt-1">
+        <button
+          onClick={() => setCustomizerOpen(true)}
+          className="inline-flex items-center gap-1.5 text-[12px] font-medium text-muted-foreground hover:text-foreground transition-colors"
+          aria-label={t("dashboard.customizeLayout")}
+        >
+          <SlidersHorizontalIcon size={13} />
+          {t("dashboard.customize")}
+        </button>
+      </div>
+
+      {/* Grid of remaining panels in user-defined order */}
+      <section className="grid grid-cols-12 gap-3.5 max-[1080px]:flex max-[1080px]:flex-col">
+        {gridPanels.map((id) => renderPanel(id))}
       </section>
+
       {detailModal}
+
+      {customizerOpen && (
+        <DashboardCustomizer onClose={() => setCustomizerOpen(false)} />
+      )}
     </main>
   );
 }

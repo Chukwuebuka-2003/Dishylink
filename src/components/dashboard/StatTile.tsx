@@ -13,6 +13,8 @@ export interface StatTileProps {
   sparkColorVar?: string;
   /** Opens the stat's detail panel; renders the tile as a button with a chevron. */
   onOpenDetail?: () => void;
+  /** Compact mode: smaller text, no sparkline, reduced padding. */
+  compact?: boolean;
 }
 
 // Card shell + tile layout. The clickable variant is a real <button>, so it has to
@@ -30,26 +32,30 @@ export function StatTile({
   sparkValues,
   sparkColorVar,
   onOpenDetail,
+  compact = false,
 }: StatTileProps) {
   const TileElement = onOpenDetail ? "button" : "div";
+  const tileClass = compact
+    ? "flex min-w-0 flex-col gap-0.5 rounded-xl bg-card px-[13px] py-[11px]"
+    : tileBase;
   return (
     <TileElement
-      className={onOpenDetail ? `${tileBase} ${tileClickable}` : tileBase}
+      className={onOpenDetail ? `${tileClass} ${tileClickable}` : tileClass}
       onClick={onOpenDetail}
       type={onOpenDetail ? "button" : undefined}
     >
-      <span className='flex items-center justify-between text-[14px] font-semibold text-foreground'>
+      <span className={`flex items-center justify-between font-semibold text-foreground ${compact ? "text-[12px]" : "text-[14px]"}`}>
         {label}
         {onOpenDetail && <span className='text-[16px] leading-none text-muted-foreground'>›</span>}
       </span>
-      <div className='flex min-h-10 items-center gap-1.5'>
-        <span className='text-[34px] font-bold leading-none tracking-[-0.01em]'>{value}</span>
+      <div className={`flex items-center gap-1.5 ${compact ? "min-h-7" : "min-h-10"}`}>
+        <span className={`font-bold leading-none tracking-[-0.01em] ${compact ? "text-[24px]" : "text-[34px]"}`}>{value}</span>
         {unit && (
-          <span className='self-end pb-[5px] text-[13px] font-medium text-muted-foreground'>
+          <span className={`self-end font-medium text-muted-foreground ${compact ? "pb-[3px] text-[11px]" : "pb-[5px] text-[13px]"}`}>
             {unit}
           </span>
         )}
-        {sparkValues && (
+        {!compact && sparkValues && (
           <Sparkline
             values={sparkValues}
             colorVar={sparkColorVar}
@@ -57,7 +63,7 @@ export function StatTile({
           />
         )}
       </div>
-      {caption && (
+      {!compact && caption && (
         <span className='text-[11.5px] font-medium text-muted-foreground'>{caption}</span>
       )}
     </TileElement>
